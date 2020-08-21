@@ -21,3 +21,7 @@ exp/img333_2x.png:
 exp/img334_2x.png:
 	mkdir -p exp
 	wget -P exp https://ccrma.stanford.edu/~jos/sasp/img334_2x.png
+
+clean:
+	rm -rf exp
+	~/d/scr/cleanlatex
