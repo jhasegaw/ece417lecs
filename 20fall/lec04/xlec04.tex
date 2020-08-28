@@ -1,0 +1,127 @@
+
+
+
+\begin{frame}
+  \frametitle{DTFT of a Windowed Sinusoid}
+
+  Suppose we just chop  out $N$ samples of that sinusoid:
+  \[
+  x[n]=\begin{cases}
+  A\cos\left(\omega_0 n+\theta\right) & 0\le n\le N-1\\
+  0 & \mbox{otherwise}
+  \end{cases}
+  \]
+  Then its DTFT is:
+  \[
+  X(\omega) = \frac{A}{2}e^{j\theta}W_R(\omega-\omega_0)+\frac{A}{2}e^{-j\theta}W_R(\omega+\omega_0)
+  \]
+  where $W_R(\omega)$ is the DTFT of the rectangular window,
+  \[
+  W_R(\omega) = e^{-j\omega\left(\frac{N-1}{2}\right)}\frac{\sin(\omega N/2)}{\sin(\omega/2)}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{DFT of a Windowed Sinusoid}
+
+  Remember that the DFT is defined to be
+  \[
+  X[k]=\sum_{n=0}^{N-1}x[n]e^{-j\left(\frac{2\pi kn}{N}\right)},~~~~
+  x[n]=\frac{1}{N}\sum_{k=0}^{N-1}X[k]e^{j\left(\frac{2\pi kn}{N}\right)}
+  \]
+  So the DFT of a windowed cosine is:
+  \[
+  X[k] = \frac{A}{2}e^{j\theta}W_R\left(\frac{2\pi k}{N}-\omega_0\right)+
+  \frac{A}{2}e^{-j\theta}W_R\left(\frac{2\pi k}{N}+\omega_0\right)
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{DFT of a Windowed Sinusoid}
+  \centerline{\includegraphics[height=1.5in]{exp/tone_white_waveform.png}}
+  \centerline{\includegraphics[height=1.5in]{exp/tone_white_powerspectrum.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{DFT of a Windowed Sinusoid}
+  \[
+  X[k] = \frac{A}{2}e^{j\theta}W_R\left(\frac{2\pi k}{N}-\omega_0\right)+
+  \frac{A}{2}e^{-j\theta}W_R\left(\frac{2\pi k}{N}+\omega_0\right)
+  \]
+  \begin{itemize}
+  \item If this formula is so complicated, how come the results on the
+    previous slide are so simple?
+  \item Answer: the window (20ms=160 samples) is an integer multiple of
+    the period (1ms=8 samples), thus $N=k_0 N_0$, and $\omega_0=\frac{2\pi k_0}{N}$.
+  \item When $\omega_0=\frac{2\pi k_0}{N}$, then
+    \[
+    W_R\left(\frac{2\pi k}{N}-\omega_0\right) = W_R\left(\frac{2\pi (k-k_0)}{N}\right)
+    =
+    \frac{\sin\left(\frac{2\pi (k-k_0)}{N}\frac{N}{2}\right)}{\sin\left(\frac{2\pi (k-k_0)}{N}\frac{1}{2}\right)}
+    =\begin{cases}
+    N & k=k_0\\
+    0 & \mbox{otherwise}
+    \end{cases}
+    \]
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{DFT of a Sinusoid (Easy Case)}
+  So if $\omega_0=\frac{2\pi k_0}{N}$, and 
+  \[
+  x[n] = A\cos(\omega_0 n+\theta)
+  \]
+  then
+  \[
+  X[k] = \frac{ANe^{j\theta}}{2}\delta(k-k_0)+\frac{ANe^{-j\theta}}{2}\delta(k+k_0)
+  \]
+  and
+  \[
+  |X[k]|^2 = \frac{(AN)^2}{4}\delta(k-k_0)+\frac{(AN)^2}{4}\delta(k+k_0)
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{DFT Power Spectrum of a Pure Tone}
+  \[
+  |X[k]|^2 = \frac{(AN)^2}{4}\delta(k-k_0)+\frac{(AN)^2}{4}\delta(k+k_0)
+  \]
+  \centerline{\includegraphics[height=1.5in]{exp/tone_white_waveform.png}}
+  \centerline{\includegraphics[height=1.5in]{exp/tone_white_powerspectrum.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Parseval's Theorem for a Pure Tone (Easy Case)}
+
+  The energy in the time domain is $N$ times the power.  The power of
+  a sinusoid is $A^2/2$.  So the energy is:
+  \[
+  \sum_{n=0}^{N-1} A^2\cos^2\left(\omega_0 N+\theta\right) = \frac{NA^2}{2}
+  \]
+  The energy in the frequency domain is:
+  \[
+  \frac{1}{N}\sum_{k=0}^{N-1} |X[k]|^2 =
+  \frac{1}{N}\left(\frac{(AN)^2}{4}+\frac{(AN)^2}{4}\right) =\frac{NA^2}{2}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Parseval's Theorem for a Pure Tone (Hard Case)}
+
+  The energy in the time domain is:
+  \[
+  \sum_{n=0}^{N-1} A^2\cos^2\left(\omega_0 N+\theta\right) = \frac{NA^2}{2}
+  \]
+  The energy in the frequency domain is:
+  \[
+  \frac{1}{N}\sum_{k=0}^{N-1} |X[k]|^2 =
+  \frac{A^2}{4N}\sum_{k=0}^{N-1}\left|
+  e^{j\theta}W_R\left(\frac{2\pi k}{N}-\omega_0\right)+
+  e^{-j\theta}W_R\left(\frac{2\pi k}{N}+\omega_0\right)\right|^2
+  \]
+  By setting the bottom equation equal to the top equation, we discover that
+  the two rectangular windows have a total energy of $2N^2$, totally regardless of the values
+  of $\omega_0$ and $\theta$.  So for all practical purposes, the ``Hard Case''
+  is just as easy as the ``Easy Case,'' and we can ignore the hard part.
+\end{frame}

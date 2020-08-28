@@ -277,9 +277,11 @@
 \end{frame}
   
 \begin{frame}
-  \frametitle{Parseval's Theorem} Parseval's theorem tells us that the
-  energy of a signal is the same in both the time domain and frequency
-  domain.  Here's Parseval's theorem for the DTFT:
+  \frametitle{Parseval's Theorem for Energy}
+
+  Parseval's theorem tells us that the energy of a signal is the same
+  in both the time domain and frequency domain.  Here's Parseval's
+  theorem for the DTFT:
   \[
   \sum_{n=0}^{N-1}x^2[n] = \frac{1}{2\pi}\int_{-\pi}^{\pi}\left|X(\omega)\right|^2d\omega
   \]
@@ -313,18 +315,33 @@
 \end{frame}
 
 \begin{frame}
+  \frametitle{Parseval's Theorem for Power}
+
+  The {\bf Power} of a signal is energy divided by duration.  So,
+  \[
+  \frac{1}{N}\sum_{n=0}^{N-1}x^2[n] = \frac{1}{2\pi N}\int_{-\pi}^{\pi}\left|X(\omega)\right|^2d\omega
+  \]
+  \ldots and here it is for the DFT:
+  \[
+  \frac{1}{N}\sum_{n=0}^{N-1}x^2[n] = \frac{1}{N^2}\sum_{k=0}^{N-1}\left|X[k]\right|^2
+  \]  
+\end{frame}
+
+
+\begin{frame}
   \frametitle{Power Spectrum}
 
-  The DFT power spectrum of a signal is defined to be $|X[k]|^2$.  This is
-  useful because
+  The DFT power spectrum of a signal is defined to be $R[k]=\frac{1}{N}|X[k]|^2$.  This is
+  useful because the signal power is
   \[
-  \sum_{n=0}^{N-1}x^2[n] = \frac{1}{N}\sum_{k=0}^{N-1}\left|X[k]\right|^2
+  \frac{1}{N}\sum_{n=0}^{N-1}x^2[n] = \frac{1}{N} \sum_{k=0}^{N-1}R[k]
   \]  
-  The DTFT power spectrum of a signal is defined to be $|X(\omega)|^2$.  This
-  is useful because
+  Similary, the DTFT power spectrum of a signal is defined to be
+  $R(\omega)=\frac{1}{N}|X(\omega)|^2$, because the signal power is
   \[
-  \sum_{n=0}^{N-1}x^2[n] = \frac{1}{2\pi}\int_{-\pi}^{\pi}\left|X(\omega)\right|^2d\omega
+  \frac{1}{N}\sum_{n=0}^{N-1}x^2[n] = \frac{1}{2\pi}\int_{-\pi}^{\pi}R(\omega)d\omega
   \]
+  We can also define an energy spectrum $E[k]=|X[k]|^2$, and $E(\omega)=|X(\omega)|^2$.
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -407,7 +424,7 @@
   \end{align*}
   In fact, putting those two things together, we get something even nicer:
   \[
-  E\left[|X[k]|^2\right] = E\left[X_R^2[k]+X_I^2[k]\right] = N\sigma^2
+  E\left[\frac{1}{N}|X[k]|^2\right] = \frac{1}{N}E\left[X_R^2[k]+X_I^2[k]\right] = \sigma^2
   \]
 \end{frame}
 
@@ -417,16 +434,16 @@
   The window length here is 20ms, at a sampling rate of $F_s=8000$Hz,
   so $N=(0.02)(8000)=160$ samples.  The white noise signal is composed
   of independent Gaussian random variables, with zero mean, and with
-  variance of $\sigma_x^2=\frac{1}{N}$, so
+  variance of $\sigma_x^2=\frac{1}{N}$, so its total energy is
   $\sum_{n=0}^{N-1}x^2[n] \approx N\sigma^2 = 1$.
   
   \centerline{\includegraphics[height=2in]{exp/tone_white_waveform.png}}
 \end{frame}
 
 \begin{frame}
-  \frametitle{White Noise Power Spectrum}
+  \frametitle{White Noise Energy Spectrum}
 
-  The power spectrum $|X[k]|^2$ is itself a random variable, but the
+  The energy spectrum $|X[k]|^2$ is itself a random variable, but the
   expected value of the power spectrum is
   \[
   E\left[|X[k]|^2\right] = E\left[X_R^2[k]+X_I^2[k]\right] = 1
@@ -447,12 +464,12 @@
   is.  Let's call $R(\omega)$ the power spectrum, and $r[n]$ its inverse
   DTFT.
   \[
-  R(\omega) = |X(\omega)|^2 = X(\omega)X^*(\omega)
+  R(\omega) = \frac{1}{N}|X(\omega)|^2 = \frac{1}{N}X(\omega)X^*(\omega)
   \]
   where $X^*(\omega)$ means complex conjugate.  Since multiplying the DTFT
   means convolution in the time domain, we know that
   \[
-  r[n] = x[n]\ast z[n]
+  r[n] = \frac{1}{N} x[n]\ast z[n]
   \]
   where $z[n]$ is the inverse transform of $X^*(\omega)$ (we haven't
   figured out what that is, yet).
@@ -474,11 +491,11 @@
   \frametitle{Autocorrelation}
   The power spectrum is
   \[
-  R(\omega)=|X(\omega)|^2
+  R(\omega)=\frac{1}{N}|X(\omega)|^2
   \]
   Its inverse Fourier transform is the autocorrelation,
   \[
-  r[n] = x[n]\ast x[-n]  = \sum_{m=-\infty}^\infty  x[m] x[m-n]
+  r[n] = \frac{1}{N}x[n]\ast x[-n]  = \frac{1}{N}\sum_{m=-\infty}^\infty  x[m] x[m-n]
   \]
 \end{frame}
 
@@ -497,23 +514,26 @@
   \begin{itemize}
     \item Notice that, just as the power spectrum is a random
       variable, the autocorrelation is also a random variable.
-    \item The autocorrelation is only really meaningful if
-      $x[n]$ is finite length.  If $x[n]$ is a length-$N$ signal, then
+    \item The autocorrelation is the average of $N$ consecutive
+      products, thus
       \[
       E\left[r[n]\right] =
-      E\left[\sum_{m=0}^{N-n-1} x[m]x[m-n]\right]
-      = (N-n)E\left[x[m]x[m-n]\right]
+      E\left[\frac{1}{N}\sum_{m=0}^{N-1} x[m]x[m-n]\right]
+      = E\left[x[m]x[m-n]\right]
       \]
+      \ldots where the last form only makes sense if the signal is
+      stationary (all samples identically distributed), so that
+      $E\left[x[m]x[m-n]\right]$ doesn't depend on $m$.
     \item
       The expected autocorrelation is related to the covariance
       and the mean:
       \[
-      E\left[x[m]x[m-n]\right]=\mbox{Cov}\left(x[m],x[m-n]\right)+E\left[x[m]\right]E\left[x[m-n]\right]
+      E\left[r[n]\right] =\mbox{Cov}\left(x[m],x[m-n]\right)+E\left[x[m]\right]E\left[x[m-n]\right]
       \]
     \item
       If $x[n]$ is zero-mean, that means
       \[
-      E\left[x[m]x[m-n]\right]=\mbox{Cov}\left(x[m],x[m-n]\right)
+      E\left[r[n]\right] =\mbox{Cov}\left(x[m],x[m-n]\right)
       \]
   \end{itemize}
 \end{frame}
@@ -521,19 +541,12 @@
   \frametitle{Autocorrelation of white noise}
   If $x[n]$ is zero-mean white noise, then
   \[
+  E\left[r[n]\right] =
   E\left[x[m]x[m-n]\right]= \begin{cases} \sigma^2 & n=0\\0 &\mbox{otherwise}\end{cases}
   \]
   We can write
   \[
-  E\left[x[m]x[m-n]\right]=\sigma^2\delta[n]
-  \]
-  And
-  \[
-  E\left[r[n]\right] = (N-n)E\left[x[m]x[m-n]\right]
-  \]
-  means that
-  \[
-  E\left[r[n]\right] = N\sigma^2\delta[n]
+  E\left[r[n]\right]=\sigma^2\delta[n]
   \]
 \end{frame}
 
@@ -549,17 +562,18 @@
   \item We can calculate the power of a noise signal by using Parseval's theorem, together with
     its power spectrum.
     \[
-    \sum_{n=0}^{N-1}x^2[n] = \frac{1}{N}\sum_{k=0}^{N-1}|X[k]|^2
+    \frac{1}{N}\sum_{n=0}^{N-1}x^2[n] = \frac{1}{N}\sum_{k=0}^{N-1}R[k]=
+    \frac{1}{2\pi}\int_{-\pi}^{\pi}R(\omega)d\omega
     \]
   \item The inverse DTFT of the power spectrum is the autocorrelation
     \[
-    r[n] = x[n]\ast x[-n]
+    r[n] = \frac{1}{N} x[n]\ast x[-n]
     \]
   \item The power spectrum and autocorrelation of noise are, themselves, random variables.
     For zero-mean white noise of length $N$, their expected values are
     \begin{align*}
-      E\left[|X[k]|^2\right] &= N\sigma^2\\
-      E\left[r[n]\right] &= N\sigma^2\delta[n]
+      E\left[R[k]\right] &= \sigma^2\\
+      E\left[r[n]\right] &= \sigma^2\delta[n]
     \end{align*}
   \end{itemize}
 \end{frame}

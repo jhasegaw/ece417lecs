@@ -1,0 +1,375 @@
+\documentclass{beamer}
+\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc}
+\newcommand{\argmax}{\operatornamewithlimits{argmax}}
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\mode<presentation>{\usetheme{Frankfurt}}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 4: Filtered Noise}
+\author{Mark Hasegawa-Johnson}
+\date{ECE 417: Multimedia Signal Processing, Fall 2020}  
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Review]{Review: Power Spectrum and Autocorrelation}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Review: Last time}
+  \begin{itemize}
+  \item Masking: a pure tone can be heard, in noise, if there is {\bf at least one}
+    auditory filter through which $\frac{N_k+T_k}{N_k}>$ threshold.
+  \item We can calculate the power of a noise signal by using Parseval's theorem, together with
+    its power spectrum.
+    \[
+    \sum_{n=0}^{N-1}x^2[n] = \frac{1}{N}\sum_{k=0}^{N-1}|X[k]|^2
+    \]
+  \item The inverse DTFT of the power spectrum is the autocorrelation
+    \[
+    r[n] = x[n]\ast x[-n]
+    \]
+  \item The power spectrum and autocorrelation of noise are, themselves, random variables.
+    For zero-mean white noise of length $N$, their expected values are
+    \begin{align*}
+      E\left[|X[k]|^2\right] &= N\sigma^2\\
+      E\left[r[n]\right] &= N\sigma^2\delta[n]
+    \end{align*}
+  \end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Autocorrelation]{Autocorrelation of Filtered Noise}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Filtered Noise}
+
+  What happens when we filter noise?  Suppose that $x[n]$ is zero-mean
+  Gaussian white noise, and
+  \[
+  y[n] = h[n]\ast x[n]
+  \]
+  What is $y[n]$?
+\end{frame}
+
+\begin{frame}
+  \frametitle{Filtered Noise}
+  \[
+  y[n] = h[n]\ast x[n] = \sum_{m=-\infty}^\infty h[m]x[n-m]
+  \]
+  \begin{itemize}
+  \item $y[n]$ is the sum of Gaussians, so $y[n]$ is also Gaussian.
+  \item $y[n]$ is the sum of zero-mean random variables, so it's also
+    zero-mean.
+  \item $y[n]=h[0]x[n]+\mbox{other stuff}$, and
+    $y[n+1]=h[1]x[n]+\mbox{other stuff}$.  So obviously, $y[n]$ and
+    $y[n+1]$ are not uncorrelated.  So $y[n]$ is not white noise.
+  \item What kind of noise is it?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The variance of $y[n]$}
+
+  First, let's find its variance.  Since $x[n]$ and $x[n+1]$ are
+  uncorrelated, we can write
+  \begin{align*}
+    \sigma_y^2 &= \sum_{m=-\infty}^\infty h^2[m] \mbox{Var}(x[n-m])\\
+    &= \sigma_x^2 \sum_{m=-\infty}^\infty h^2[m]
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The autocorrelation of $y[n]$}
+
+  Second, let's find its autocorrelation.  Let's define $r_{xx}[n] = x[n]\ast x[-n]$.
+  Then
+  \begin{align*}
+    r_{yy}[n] &= y[n] \ast y[-n]\\
+    &= (x[n]\ast h[n]) \ast (x[-n]\ast h[-n])\\
+    &= x[n]\ast x[-n]\ast h[n]\ast h[-n]\\
+    &= r_{xx}[n] \ast r_{hh}[n]
+  \end{align*}
+  So we have that $r_{yy}[n] = r_{xx}[n]\ast r_{hh}[n]$!
+\end{frame}
+
+\begin{frame}
+  \frametitle{Expected autocorrelation of $y[n]$}
+
+  \[
+  r_{yy}[n] = r_{xx}[n] \ast r_{hh}[n]
+  \]
+  Expectation is linear, and convolution is linear, so
+  \[
+  E\left[r_{yy}[n]\right] = E\left[r_{xx}[n]\right] \ast E\left[r_{hh}[n]\right]
+  \]
+  \ldots but $h[n]$ is not  random, so that last expectation is not really necessary.
+  \[
+  E\left[r_{yy}[n]\right] = E\left[r_{xx}[n]\right] \ast r_{hh}[n]
+  \]
+\end{frame}
+\begin{frame}
+  \frametitle{Expected autocorrelation of $y[n]$}
+  
+  $x[n]$ is white noise if and  only if its autocorrelation is a delta function:
+  \[
+  E\left[r_{xx}[n]\right] = N\sigma_x^2 \delta[n]
+  \]
+  So
+  \[
+  E\left[r_{yy}[n]\right] = N\sigma_x^2 r_{hh}[n]
+  \]
+  In other words, $x[n]$ contributes only its energy ($N\sigma^2$).  $h[n]$ contributes the
+  correlation between neighboring  samples.  Let's look at that a little more closely\ldots
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{Expected autocorrelation of $y[n]$}
+  
+  For an $N$-sample zero-mean signal,
+  \[
+  E\left[r_{yy}[n]\right] = (N-n)\mbox{Cov}\left(y[m],y[m-n]\right)
+  \]
+  So, plugging in from the previous slide, we get
+  \begin{align*}
+    \mbox{Cov}\left(y[m],y[m-n]\right) &= \sigma^2\left(\frac{N}{N-n}\right)r_{hh}[n]\\
+    &= N\sigma^2\left(\frac{1}{N-n}\sum_{m} h[m] h[m-n]\right)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example}
+
+  Here's an example.  The white noise signal on the top ($x[n]$) is
+  convolved with the bandpass filter in the middle ($h[n]$) to produce
+  the green-noise signal on the bottom ($y[n]$).
+  
+  \centerline{\includegraphics[height=2in]{../lec03/exp/gtfiltered_white_waveform.png}}
+\end{frame}
+\begin{frame}
+  \frametitle{Some terminology}
+
+  \begin{itemize}
+    \item Noise with a flat power spectrum (uncorrelated samples) is
+      called white noise.
+    \item Noise that has been filtered (correlated samples) is called
+      colored noise.
+      \begin{itemize}
+      \item If it's a low-pass filter, we call it pink noise (this is
+        quite standard).
+      \item If it's a high-pass filter, we could call it blue noise
+        (not so standard).
+      \item If it's a band-pass filter, we could call it green noise.
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Spectrum]{Power Spectrum of Filtered Noise}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Power Spectrum of Filtered Noise}
+
+  So we have $r_{yy}[n]=r_{xx}[n]\ast r_{hh}[n]$.  What about the
+  power spectrum?
+
+  \begin{align*}
+    R_{yy}(\omega) &= {\mathcal F}\left\{r_{yy}[n]\right\} \\
+    &= {\mathcal F}\left\{r_{xx}[n]\ast r_{hh}[n]\right\} \\
+    &= R_{xx}(\omega)R_{hh}(\omega)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Power Spectrum of a  Filter}
+
+  Remember that $r_{xx}[n]=x[n]\ast x[-n]$ has, as its Fourier
+  transform, $R_{xx}(\omega)=X(\omega)X^*(\omega)=|X(\omega)|^2$.
+  Similarly, if $h[n]$ is real in the time domain, we get
+  \[
+  R_{hh}(\omega)  = |H(\omega)|^2
+  \]
+  and therefore the power spectrum of the noise is
+  \[
+  R_{yy}(\omega) = R_{xx}(\omega)|H(\omega)|^2
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example}
+
+  Here's an example.  The white noise signal on the top ($|X[k]|^2$) is
+  convolved with the bandpass filter in the middle ($|H[k]|^2$) to produce
+  the green-noise signal on the bottom ($|Y[k]|^2=|X[k]|^2|H[k]|^2$).
+  
+  \centerline{\includegraphics[height=2in]{../lec03/exp/gtfiltered_white_powerspectrum.png}}
+\end{frame}
+  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Bandwidth]{What is the Bandwidth of the Auditory Filters?}
+\setcounter{subsection}{1}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Shape]{What is the Shape of the Auditory Filters?}
+\setcounter{subsection}{1}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Tone]{Power Spectrum of a Pure Tone}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{What is the power of a sinusoid?}
+
+  A sinusoid has the formula
+  \[
+  x[n] = A\cos\left(\omega_0 n+\theta\right),~~~\omega=\frac{2\pi}{N_0}
+  \]
+  Its power is calculated by averaging over any integer number of
+  periods:
+  \[
+  P = \frac{1}{N_0}\sum_{n=0}^{N_0-1} A^2\cos^2\left(\omega_0 n+\theta\right) = \frac{A^2}{2}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{DTFT of a Windowed Sinusoid}
+
+  Suppose we just chop  out $N$ samples of that sinusoid:
+  \[
+  x[n]=\begin{cases}
+  A\cos\left(\omega_0 n+\theta\right) & 0\le n\le N-1\\
+  0 & \mbox{otherwise}
+  \end{cases}
+  \]
+  Then its DTFT is:
+  \[
+  X(\omega) = \frac{A}{2}e^{j\theta}W_R(\omega-\omega_0)+\frac{A}{2}e^{-j\theta}W_R(\omega+\omega_0)
+  \]
+  where $W_R(\omega)$ is the DTFT of the rectangular window,
+  \[
+  W_R(\omega) = e^{-j\omega\left(\frac{N-1}{2}\right)}\frac{\sin(\omega N/2)}{\sin(\omega/2)}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{DFT of a Windowed Sinusoid}
+
+  Remember that the DFT is defined to be
+  \[
+  X[k]=\sum_{n=0}^{N-1}x[n]e^{-j\left(\frac{2\pi kn}{N}\right)},~~~~
+  x[n]=\frac{1}{N}\sum_{k=0}^{N-1}X[k]e^{j\left(\frac{2\pi kn}{N}\right)}
+  \]
+  So the DFT of a windowed cosine is:
+  \[
+  X[k] = \frac{A}{2}e^{j\theta}W_R\left(\frac{2\pi k}{N}-\omega_0\right)+
+  \frac{A}{2}e^{-j\theta}W_R\left(\frac{2\pi k}{N}+\omega_0\right)
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{DFT of a Windowed Sinusoid}
+  \centerline{\includegraphics[height=1.5in]{exp/tone_white_waveform.png}}
+  \centerline{\includegraphics[height=1.5in]{exp/tone_white_powerspectrum.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{DFT of a Windowed Sinusoid}
+  \[
+  X[k] = \frac{A}{2}e^{j\theta}W_R\left(\frac{2\pi k}{N}-\omega_0\right)+
+  \frac{A}{2}e^{-j\theta}W_R\left(\frac{2\pi k}{N}+\omega_0\right)
+  \]
+  \begin{itemize}
+  \item If this formula is so complicated, how come the results on the
+    previous slide are so simple?
+  \item Answer: the window (20ms=160 samples) is an integer multiple of
+    the period (1ms=8 samples), thus $N=k_0 N_0$, and $\omega_0=\frac{2\pi k_0}{N}$.
+  \item When $\omega_0=\frac{2\pi k_0}{N}$, then
+    \[
+    W_R\left(\frac{2\pi k}{N}-\omega_0\right) = W_R\left(\frac{2\pi (k-k_0)}{N}\right)
+    =
+    \frac{\sin\left(\frac{2\pi (k-k_0)}{N}\frac{N}{2}\right)}{\sin\left(\frac{2\pi (k-k_0)}{N}\frac{1}{2}\right)}
+    =\begin{cases}
+    N & k=k_0\\
+    0 & \mbox{otherwise}
+    \end{cases}
+    \]
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{DFT of a Sinusoid (Easy Case)}
+  So if $\omega_0=\frac{2\pi k_0}{N}$, and 
+  \[
+  x[n] = A\cos(\omega_0 n+\theta)
+  \]
+  then
+  \[
+  X[k] = \frac{ANe^{j\theta}}{2}\delta(k-k_0)+\frac{ANe^{-j\theta}}{2}\delta(k+k_0)
+  \]
+  and
+  \[
+  |X[k]|^2 = \frac{(AN)^2}{4}\delta(k-k_0)+\frac{(AN)^2}{4}\delta(k+k_0)
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{DFT Power Spectrum of a Pure Tone}
+  \[
+  |X[k]|^2 = \frac{(AN)^2}{4}\delta(k-k_0)+\frac{(AN)^2}{4}\delta(k+k_0)
+  \]
+  \centerline{\includegraphics[height=1.5in]{exp/tone_white_waveform.png}}
+  \centerline{\includegraphics[height=1.5in]{exp/tone_white_powerspectrum.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Parseval's Theorem for a Pure Tone (Easy Case)}
+
+  The energy in the time domain is $N$ times the power.  The power of
+  a sinusoid is $A^2/2$.  So the energy is:
+  \[
+  \sum_{n=0}^{N-1} A^2\cos^2\left(\omega_0 N+\theta\right) = \frac{NA^2}{2}
+  \]
+  The energy in the frequency domain is:
+  \[
+  \frac{1}{N}\sum_{k=0}^{N-1} |X[k]|^2 =
+  \frac{1}{N}\left(\frac{(AN)^2}{4}+\frac{(AN)^2}{4}\right) =\frac{NA^2}{2}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Parseval's Theorem for a Pure Tone (Hard Case)}
+
+  The energy in the time domain is:
+  \[
+  \sum_{n=0}^{N-1} A^2\cos^2\left(\omega_0 N+\theta\right) = \frac{NA^2}{2}
+  \]
+  The energy in the frequency domain is:
+  \[
+  \frac{1}{N}\sum_{k=0}^{N-1} |X[k]|^2 =
+  \frac{A^2}{4N}\sum_{k=0}^{N-1}\left|
+  e^{j\theta}W_R\left(\frac{2\pi k}{N}-\omega_0\right)+
+  e^{-j\theta}W_R\left(\frac{2\pi k}{N}+\omega_0\right)\right|^2
+  \]
+  By setting the bottom equation equal to the top equation, we discover that
+  the two rectangular windows have a total energy of $2N^2$, totally regardless of the values
+  of $\omega_0$ and $\theta$.  So for all practical purposes, the ``Hard Case''
+  is just as easy as the ``Easy Case,'' and we can ignore the hard part.
+\end{frame}
