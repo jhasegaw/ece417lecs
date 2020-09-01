@@ -1,8 +1,9 @@
 \documentclass{beamer}
-\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate}
+\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate,amssymb}
 \usetikzlibrary{positioning,shadows,arrows,shapes,calc}
 \newcommand{\argmax}{\operatornamewithlimits{argmax}}
 \newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\newcommand{\average}{\operatornamewithlimits{average}}
 \mode<presentation>{\usetheme{Frankfurt}}
 \AtBeginSection[]
 {
@@ -11,7 +12,7 @@
     \tableofcontents[currentsection,currentsubsection]
   \end{frame}
 }
-\title{Lecture 4: Filtered Noise}
+\title{Lecture 5: Short-Time Fourier Transform and Filterbanks}
 \author{Mark Hasegawa-Johnson}
 \date{ECE 417: Multimedia Signal Processing, Fall 2020}  
 \begin{document}
@@ -27,349 +28,422 @@
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section[Review]{Review: Power Spectrum and Autocorrelation}
+\section[Review]{Review: Power Spectrum}
 \setcounter{subsection}{1}
 
 \begin{frame}
-  \frametitle{Review: Last time}
+  \frametitle{Power Spectrum}
+
+  The DFT power spectrum of a signal is defined to be $R[k]=\frac{1}{N}|X[k]|^2$.  This is
+  useful because the signal power is
+  \[
+  \frac{1}{N}\sum_{n=0}^{N-1}x^2[n] = \frac{1}{N} \sum_{k=0}^{N-1}R[k]
+  \]  
+  Similary, the DTFT power spectrum of a signal of length $N$ can be defined to be
+  $R(\omega)=\frac{1}{N}|X(\omega)|^2$, because the signal power is
+  \[
+  \frac{1}{N}\sum_{n=0}^{N-1}x^2[n] = \frac{1}{2\pi}\int_{-\pi}^{\pi}R(\omega)d\omega
+  \]
+  In this class we will almost never use the power spectrum of an
+  infinite length signal, but if we need it, it can be defined as
+  \[
+  R(\omega) = \lim_{N\rightarrow\infty}\frac{1}{N}\left|\sum_{n=-(N-1)/2}^{(N-1)/2} x[n]e^{-j\omega n}\right|^2
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Autocorrelation}
+  The power spectrum is
+  \[
+  R(\omega)=\frac{1}{N}|X(\omega)|^2
+  \]
+  Its inverse Fourier transform is the autocorrelation,
+  \[
+  r[n] = \frac{1}{N}x[n]\ast x[-n]  = \frac{1}{N}\sum_{m=-\infty}^\infty  x[m] x[m-n]
+  \]
+  This relationship, $r[n]\leftrightarrow R(\omega)$, is called
+  Wiener's theorem, named after Norbert Wiener, the inventor of
+  cybernetics.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[STFT]{Short-Time Fourier Transform}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Spectrogram = $20\log_{10}|\mbox{Short Time Fourier Transform}|$}
+  \centerline{\includegraphics[height=2.5in]{CM05_B2_D2_M4.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Short Time Fourier Transform}
+
+
+  The short-time Fourier Transform (STFT) is the Fourier transform of
+  a short part of the signal.
+  We write either $X(\omega_k,m)$  of $X[k,m]$ to mean:
   \begin{itemize}
-  \item Masking: a pure tone can be heard, in noise, if there is {\bf at least one}
-    auditory filter through which $\frac{N_k+T_k}{N_k}>$ threshold.
-  \item We can calculate the power of a noise signal by using Parseval's theorem, together with
-    its power spectrum.
+  \item The DFT of the short part of the signal that starts at sample $m$,
+  \item windowed by a window of length less than or equal to $N$ samples,
+  \item evaluated at frequency $\omega_k=\frac{2\pi k}{N}$.
+  \end{itemize}
+  The next several slides will go through this procedure in detail,
+  then I'll summarize.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Step \#1: Chop out part of the signal}
+
+  First, we just chop out the part of the signal starting at sample
+  $m$.  Here are examples from Librivox readings of {\em White Fang}
+  and {\em Pride and Prejudice}:
+  \centerline{\includegraphics[height=1.5in]{librivox_waves.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Step \#2: Window the signal}
+
+  Second, we window the signal.  A window with good spectral
+  properties is the Hamming window:
+  \[
+  w[n] = \begin{cases}
+    0.54 - 0.46\cos\left(\frac{2\pi n}{N-1}\right) & 0\le n\le N\\
+    0 & \mbox{otherwise}
+    \end{cases}
+  \]
+  \centerline{\includegraphics[height=1.25in]{hamming.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Step \#2: Window the signal}
+
+  Here is the windowed signals, which is nonzero for $0\le n-m\le (N-1)$:
+  \[
+  x[n,m] = w[n-m]x[n]
+  \]
+  \centerline{\includegraphics[height=1.5in]{librivox_windowed.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Step \#3: Fourier Transform}
+
+  Finally, we compute the DFT:
+  \[
+  X[k,m] = \sum_{n=m}^{n+(N-1)} w[n-m]x[n]e^{-j2\pi k(n-m)/N} 
+  \]
+  Here it is, plotted as a function of $k$:
+  \centerline{\includegraphics[height=1.5in]{librivox_dftsquared.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Spectrogram = $20\log_{10}|\mbox{Short Time Fourier Transform}|$}
+
+  \[
+  20\log_{10}|X[k,m]| = 20\log_{10}\left|\sum_{n}w[n-m]x[n]e^{-j2\pi k(n-m)/N}\right|
+  \]
+  Here it is, plotted as an image, with $k=$row index, $m=$column index.
+  \centerline{\includegraphics[height=1.5in]{librivox_spectrograms.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Putting it all together: STFT}
+  The STFT, then, is defined as
+  \[
+  X[k,m]= \sum_{n} w[n-m]x[n]e^{-j\omega_k(n-m)},~~~\omega_k=\frac{2\pi k}{N}
+  \]
+  which we can also write as
+  \[
+  X[k,m] = \mbox{DFT}\left\{w[n]x[n+m]\right\}
+  \]
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Linear Frequency]{STFT as a Linear-Frequency Filterbank}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{STFT as a bank of analysis filters}
+
+  The STFT is defined as:
+  \[
+  X[k,m] = \sum_{n=m}^{m+(N-1)} w[n-m]x[n]e^{-j\omega_k(n-m)}
+  \]
+  which we can also write as
+  \[
+  X[k,m] = x[m] \ast h_k[-m]
+  \]
+  where
+  \[
+  h_k[m] = w[m]e^{j\omega_k m}
+  \]
+  The frequency response of this filter is just the window DTFT,
+  $W(\omega)$, shifted up to $\omega_k$:
+  \[
+  H_k(\omega) = W\left(\omega-\omega_k\right)
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Hamming window spectrum}
+
+  The frequency response of this filter is just the window DTFT,
+  $W(\omega)$, shifted up to $\omega_k$:
+  \[
+  H_k(\omega) = W\left(\omega-\omega_k\right)
+  \]
+  For a Hamming window, $w[n]$ is on the left, $W(\omega)$ is on the right:
+  \centerline{\includegraphics[height=2in]{Hamming_spectrum.png}}
+  \begin{tiny}
+    By Olli Niemitalo, public domain image,
+    \url{https://en.wikipedia.org/wiki/File:Multidimensional_M_Channel_Filter_Banks.jpg}
+  \end{tiny}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{STFT as a bank of analysis filters}
+
+  So the STFT is just like filtering $x[n]$ through a bank of analysis
+  filters, in which the $k^{\textrm{th}}$ filter is a bandpass filter
+  centered at $\omega_k$:
+  \centerline{\includegraphics[height=2in]{Analysis_Filter_Banks.jpg}}
+  \begin{tiny}
+    By Ventetpluie, GFDL,
+    \url{https://en.wikipedia.org/wiki/File:Multidimensional_Analysis_Filter_Banks.jpg}
+  \end{tiny}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Short-Time Fourier Transform}
+  \begin{itemize}
+  \item {\bf STFT as a Transform:}
     \[
-    \sum_{n=0}^{N-1}x^2[n] = \frac{1}{N}\sum_{k=0}^{N-1}|X[k]|^2
+    X[k,m] = \mbox{DFT}\left\{w[n]x[n+m]\right\}
     \]
-  \item The inverse DTFT of the power spectrum is the autocorrelation
+  \item {\bf STFT as a Filterbank:}
     \[
-    r[n] = x[n]\ast x[-n]
+    X[k,m] = x[m] \ast h_k[-m],~~~~h_k[m] = w[m]e^{j\omega_k m}
     \]
-  \item The power spectrum and autocorrelation of noise are, themselves, random variables.
-    For zero-mean white noise of length $N$, their expected values are
+  \end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Inverse]{Optional Stuff: the Inverse STFT}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Short-Time Fourier Transform}
+  \begin{itemize}
+  \item {\bf STFT as a Transform:}
+    \[
+    X[k,m] = \mbox{DFT}\left\{w[n]x[n+m]\right\}
+    \]
+  \item {\bf STFT as a Filterbank:}
+    \[
+    X[k,m] = x[m] \ast h_k[-m],~~~~h_k[m] = w[m]e^{j\omega_k m}
+    \]
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The inverse STFT}
+  STFT as a transform is defined as:
+  \[
+  X[k,m]= \sum_{n=m}^{m+(N-1)} w[n-m]x[n]e^{-j2\pi k(n-m)/N}
+  \]
+  Obviously, we can inverse transform as:
+  \[
+  x[n] = \frac{1}{N w[n-m]}\sum_{k=0}^{N-1} X[k,m]e^{j2\pi k(n-m)/N}
+  \]
+\end{frame}
+\begin{frame}
+  \frametitle{The inverse STFT}
+
+  We get a better estimate of $x[n]$ if we average over all of the
+  windows for which $w[n-m]\ne 0$.  Remember that this
+  happens when $0\le n-m\le (N-1)$, so
+  \[
+  x[n] = \frac{\sum_{m=n-(N-1)}^{n}\frac{1}{N}\sum_{k=0}^{N-1} X[k,m]e^{j\omega_k (n-m)}}{\sum_{m=n-(N-1)}^{n}w[n-m]}
+  \]
+  The denominator is
+  \[
+  W(0)=\sum_{m=0}^{N-1} w[m]
+  \]
+  So
+  \[
+  x[n] = \frac{1}{NW(0)}\sum_{m=n-(N-1)}^{n}\sum_{k=0}^{N-1} X[k,m]e^{j\omega_k (n-m)}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{STFT: Forward and Inverse}
+  \begin{itemize}
+  \item {\bf Short Time Fourier Transform (STFT)}:
+    \[
+    X[k,m]= \sum_{n=m}^{m+(N-1)} w[n-m]x[n]e^{-j\omega_k (n-m)},~~~\omega_k=\frac{2\pi k}{N}
+    \]
+  \item {\bf Inverse Short Time Fourier Transform (ISTFT)}:
+    \[
+    x[n] = \frac{1}{NW(0)}\sum_{m=n-(N-1)}^{n}\sum_{k=0}^{N-1} X[k,m]e^{j\omega_k (n-m)}
+    \]
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{ISTFT as a bank of synthesis filters}
+
+  {\bf Inverse Short Time Fourier Transform (ISTFT)}:
+  \[
+  x[n] = \frac{1}{NW(0)}\sum_{m=n-(N-1)}^{n}\sum_{k=0}^{N-1} X[k,m]e^{j\omega_k (n-m)}
+  \]
+  The ISTFT is the sum of filters:
+  \begin{align*}
+    x[n] &= \frac{1}{W(0)}\sum_{m=n-(N-1)}^{n}\sum_{k=0}^{N-1} X[k,m]e^{j\omega_k (n-m)}\\
+    &= \sum_{k=0}^{N-1} \left( X[k,m] \ast g_k[m]\right)
+  \end{align*}
+  where
+  \[
+  g_k[m] = \begin{cases}
+    \frac{1}{W(0)}e^{j\omega_k m} & 0\le m\le N-1\\
+    0 & \mbox{otherwise}
+  \end{cases}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{ISTFT as a bank of synthesis filters}
+
+  So the ISTFT is just like filtering $X[k,m]$ through a bank of synthesis
+  filters, in which the $k^{\textrm{th}}$ filter is a bandpass filter
+  centered at $\omega_k$:
+  \centerline{\includegraphics[height=2in]{Synthesis_Filter_Banks.jpg}}
+  \begin{tiny}
+    By Ventetpluie, GFDL,
+    \url{https://en.wikipedia.org/wiki/File:Multidimensional_Synthesis_Filter_Banks.jpg}
+  \end{tiny}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{The whole process: STFT and ISTFT as a filterbanks}
+
+  We can compute the STFT, downsample, do stuff to it, upsample, and then resynthesize the
+  resulting waveform:
+  \centerline{\includegraphics[height=2in]{Filter_Banks.jpg}}
+  \begin{tiny}
+    By Ventetpluie, GFDL,
+    \url{https://en.wikipedia.org/wiki/File:Multidimensional_M_Channel_Filter_Banks.jpg}
+  \end{tiny}
+\end{frame}
+  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Nonlinear Frequency]{Implementing Nonlinear-Frequency Filterbanks Using the STFT}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Short-Time Fourier Transform}
+  \begin{itemize}
+  \item {\bf STFT as a Transform:}
+    \[
+    X[k,m] = \mbox{DFT}\left\{w[n]x[n+m]\right\}
+    \]
+  \item {\bf STFT as a Filterbank:}
+    \[
+    X[k,m] = x[m] \ast h_k[-m],~~~~h_k[m] = w[m]e^{j\omega_k m}
+    \]
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Relative Benefits of Transforms vs. Filters}
+  \begin{itemize}
+  \item {\bf STFT as a Transform:} Implement using Fast Fourier Transform.
     \begin{align*}
-      E\left[|X[k]|^2\right] &= N\sigma^2\\
-      E\left[r[n]\right] &= N\sigma^2\delta[n]
+      X[k,m]&= \mbox{DFT}\left\{w[n]x[n+m]\right\}\\
+      \mbox{\bf Computational Complexity} &= {\mathcal O}\left\{N\log_2(N)\right\}~\mbox{per}~m\\
+      \mbox{\bf Example:} & N=1024\\
+      \mbox{\bf Computational Complexity} &= 10240~\mbox{multiplies/sample}
+    \end{align*}
+  \item {\bf STFT as a Filterbank:} Implement using convolution.
+    \begin{align*}
+      X[k,m]&= x[m]\ast h_k[-m]\\
+      \mbox{\bf Computational Complexity} &= {\mathcal O}\left\{N^2\right\}~\mbox{per}~m\\
+      \mbox{\bf Example:} & N=1024\\
+      \mbox{\bf Computational Complexity} &= 1048576~\mbox{multiplies/sample}
     \end{align*}
   \end{itemize}
 \end{frame}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section[Autocorrelation]{Autocorrelation of Filtered Noise}
-\setcounter{subsection}{1}
-
 \begin{frame}
-  \frametitle{Filtered Noise}
+  \frametitle{What about other filters?}
 
-  What happens when we filter noise?  Suppose that $x[n]$ is zero-mean
-  Gaussian white noise, and
-  \[
-  y[n] = h[n]\ast x[n]
-  \]
-  What is $y[n]$?
-\end{frame}
-
-\begin{frame}
-  \frametitle{Filtered Noise}
-  \[
-  y[n] = h[n]\ast x[n] = \sum_{m=-\infty}^\infty h[m]x[n-m]
-  \]
   \begin{itemize}
-  \item $y[n]$ is the sum of Gaussians, so $y[n]$ is also Gaussian.
-  \item $y[n]$ is the sum of zero-mean random variables, so it's also
-    zero-mean.
-  \item $y[n]=h[0]x[n]+\mbox{other stuff}$, and
-    $y[n+1]=h[1]x[n]+\mbox{other stuff}$.  So obviously, $y[n]$ and
-    $y[n+1]$ are not uncorrelated.  So $y[n]$ is not white noise.
-  \item What kind of noise is it?
+  \item Obviously, FFT is much faster than the convolution approach.
+  \item Can we use the FFT to speed up other types of filter computations, as well?
+  \item For example, how about gammatone filters?  Could we compute those
+    from the STFT?
   \end{itemize}
 \end{frame}
 
 \begin{frame}
-  \frametitle{The variance of $y[n]$}
-
-  First, let's find its variance.  Since $x[n]$ and $x[n+1]$ are
-  uncorrelated, we can write
-  \begin{align*}
-    \sigma_y^2 &= \sum_{m=-\infty}^\infty h^2[m] \mbox{Var}(x[n-m])\\
-    &= \sigma_x^2 \sum_{m=-\infty}^\infty h^2[m]
-  \end{align*}
-\end{frame}
-
-\begin{frame}
-  \frametitle{The autocorrelation of $y[n]$}
-
-  Second, let's find its autocorrelation.  Let's define $r_{xx}[n] = x[n]\ast x[-n]$.
-  Then
-  \begin{align*}
-    r_{yy}[n] &= y[n] \ast y[-n]\\
-    &= (x[n]\ast h[n]) \ast (x[-n]\ast h[-n])\\
-    &= x[n]\ast x[-n]\ast h[n]\ast h[-n]\\
-    &= r_{xx}[n] \ast r_{hh}[n]
-  \end{align*}
-  So we have that $r_{yy}[n] = r_{xx}[n]\ast r_{hh}[n]$!
-\end{frame}
-
-\begin{frame}
-  \frametitle{Expected autocorrelation of $y[n]$}
-
-  \[
-  r_{yy}[n] = r_{xx}[n] \ast r_{hh}[n]
-  \]
-  Expectation is linear, and convolution is linear, so
-  \[
-  E\left[r_{yy}[n]\right] = E\left[r_{xx}[n]\right] \ast E\left[r_{hh}[n]\right]
-  \]
-  \ldots but $h[n]$ is not  random, so that last expectation is not really necessary.
-  \[
-  E\left[r_{yy}[n]\right] = E\left[r_{xx}[n]\right] \ast r_{hh}[n]
-  \]
-\end{frame}
-\begin{frame}
-  \frametitle{Expected autocorrelation of $y[n]$}
-  
-  $x[n]$ is white noise if and  only if its autocorrelation is a delta function:
-  \[
-  E\left[r_{xx}[n]\right] = N\sigma_x^2 \delta[n]
-  \]
-  So
-  \[
-  E\left[r_{yy}[n]\right] = N\sigma_x^2 r_{hh}[n]
-  \]
-  In other words, $x[n]$ contributes only its energy ($N\sigma^2$).  $h[n]$ contributes the
-  correlation between neighboring  samples.  Let's look at that a little more closely\ldots
-  
-\end{frame}
-
-\begin{frame}
-  \frametitle{Expected autocorrelation of $y[n]$}
-  
-  For an $N$-sample zero-mean signal,
-  \[
-  E\left[r_{yy}[n]\right] = (N-n)\mbox{Cov}\left(y[m],y[m-n]\right)
-  \]
-  So, plugging in from the previous slide, we get
-  \begin{align*}
-    \mbox{Cov}\left(y[m],y[m-n]\right) &= \sigma^2\left(\frac{N}{N-n}\right)r_{hh}[n]\\
-    &= N\sigma^2\left(\frac{1}{N-n}\sum_{m} h[m] h[m-n]\right)
-  \end{align*}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Example}
-
-  Here's an example.  The white noise signal on the top ($x[n]$) is
-  convolved with the bandpass filter in the middle ($h[n]$) to produce
-  the green-noise signal on the bottom ($y[n]$).
-  
-  \centerline{\includegraphics[height=2in]{../lec03/exp/gtfiltered_white_waveform.png}}
-\end{frame}
-\begin{frame}
-  \frametitle{Some terminology}
+  \frametitle{What about other filters?}
 
   \begin{itemize}
-    \item Noise with a flat power spectrum (uncorrelated samples) is
-      called white noise.
-    \item Noise that has been filtered (correlated samples) is called
-      colored noise.
-      \begin{itemize}
-      \item If it's a low-pass filter, we call it pink noise (this is
-        quite standard).
-      \item If it's a high-pass filter, we could call it blue noise
-        (not so standard).
-      \item If it's a band-pass filter, we could call it green noise.
-      \end{itemize}
+    \item 
+      We want to find $y[n]=f[n]\ast x[n]$, where
+      $f[n]$ is a length-$N$ impulse response.
+    \item Complexity of the convolution in time domain is
+      ${\mathcal{O}}\left\{N\right\}$ per output sample.
+    \item We can't find $y[n]$ exactly, but we can find
+      $\tilde{y}[n]=f[n]\circledast (w[n-m]x[n])$ from the STFT:
+      \[
+      Y[k,m] = F[k]X[k,m]
+      \]
+    \item It makes sense to do this only if $F[k]$ has far fewer than
+      $N$ non-zero terms (narrowband filter).
   \end{itemize}
 \end{frame}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section[Spectrum]{Power Spectrum of Filtered Noise}
-\setcounter{subsection}{1}
-
 \begin{frame}
-  \frametitle{Power Spectrum of Filtered Noise}
+  \frametitle{Bandpass-Filtered Signal Power}
 
-  So we have $r_{yy}[n]=r_{xx}[n]\ast r_{hh}[n]$.  What about the
-  power spectrum?
+  In particular, suppose that $f[n]$ is a bandpass filter, and we'd
+  like to know how much power gets through it.
 
+  So we'd like to know the power of the signal
+  $\tilde{y}[n]=f[n]\circledast (w[n-m]x[n])$.  We can get that as
   \begin{align*}
-    R_{yy}(\omega) &= {\mathcal F}\left\{r_{yy}[n]\right\} \\
-    &= {\mathcal F}\left\{r_{xx}[n]\ast r_{hh}[n]\right\} \\
-    &= R_{xx}(\omega)R_{hh}(\omega)
+    \sum_{n=0}^{N-1} \tilde{y}[n]^2 
+    &= \frac{1}{N}\sum_{k=0}^{N-1} |Y[k,m]|^2\\
+    &= \frac{1}{N}\sum_{k=0}^{N-1} |H[k]|^2 |X[k,m]|^2
   \end{align*}
 \end{frame}
 
-\begin{frame}
-  \frametitle{Power Spectrum of a  Filter}
-
-  Remember that $r_{xx}[n]=x[n]\ast x[-n]$ has, as its Fourier
-  transform, $R_{xx}(\omega)=X(\omega)X^*(\omega)=|X(\omega)|^2$.
-  Similarly, if $h[n]$ is real in the time domain, we get
-  \[
-  R_{hh}(\omega)  = |H(\omega)|^2
-  \]
-  and therefore the power spectrum of the noise is
-  \[
-  R_{yy}(\omega) = R_{xx}(\omega)|H(\omega)|^2
-  \]
-\end{frame}
-
-\begin{frame}
-  \frametitle{Example}
-
-  Here's an example.  The white noise signal on the top ($|X[k]|^2$) is
-  convolved with the bandpass filter in the middle ($|H[k]|^2$) to produce
-  the green-noise signal on the bottom ($|Y[k]|^2=|X[k]|^2|H[k]|^2$).
-  
-  \centerline{\includegraphics[height=2in]{../lec03/exp/gtfiltered_white_powerspectrum.png}}
-\end{frame}
-  
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section[Bandwidth]{What is the Bandwidth of the Auditory Filters?}
-\setcounter{subsection}{1}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section[Shape]{What is the Shape of the Auditory Filters?}
-\setcounter{subsection}{1}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section[Tone]{Power Spectrum of a Pure Tone}
+\section[Summary]{Summary}
 \setcounter{subsection}{1}
 
 \begin{frame}
-  \frametitle{What is the power of a sinusoid?}
-
-  A sinusoid has the formula
-  \[
-  x[n] = A\cos\left(\omega_0 n+\theta\right),~~~\omega=\frac{2\pi}{N_0}
-  \]
-  Its power is calculated by averaging over any integer number of
-  periods:
-  \[
-  P = \frac{1}{N_0}\sum_{n=0}^{N_0-1} A^2\cos^2\left(\omega_0 n+\theta\right) = \frac{A^2}{2}
-  \]
-\end{frame}
-
-\begin{frame}
-  \frametitle{DTFT of a Windowed Sinusoid}
-
-  Suppose we just chop  out $N$ samples of that sinusoid:
-  \[
-  x[n]=\begin{cases}
-  A\cos\left(\omega_0 n+\theta\right) & 0\le n\le N-1\\
-  0 & \mbox{otherwise}
-  \end{cases}
-  \]
-  Then its DTFT is:
-  \[
-  X(\omega) = \frac{A}{2}e^{j\theta}W_R(\omega-\omega_0)+\frac{A}{2}e^{-j\theta}W_R(\omega+\omega_0)
-  \]
-  where $W_R(\omega)$ is the DTFT of the rectangular window,
-  \[
-  W_R(\omega) = e^{-j\omega\left(\frac{N-1}{2}\right)}\frac{\sin(\omega N/2)}{\sin(\omega/2)}
-  \]
-\end{frame}
-
-\begin{frame}
-  \frametitle{DFT of a Windowed Sinusoid}
-
-  Remember that the DFT is defined to be
-  \[
-  X[k]=\sum_{n=0}^{N-1}x[n]e^{-j\left(\frac{2\pi kn}{N}\right)},~~~~
-  x[n]=\frac{1}{N}\sum_{k=0}^{N-1}X[k]e^{j\left(\frac{2\pi kn}{N}\right)}
-  \]
-  So the DFT of a windowed cosine is:
-  \[
-  X[k] = \frac{A}{2}e^{j\theta}W_R\left(\frac{2\pi k}{N}-\omega_0\right)+
-  \frac{A}{2}e^{-j\theta}W_R\left(\frac{2\pi k}{N}+\omega_0\right)
-  \]
-\end{frame}
-
-\begin{frame}
-  \frametitle{DFT of a Windowed Sinusoid}
-  \centerline{\includegraphics[height=1.5in]{exp/tone_white_waveform.png}}
-  \centerline{\includegraphics[height=1.5in]{exp/tone_white_powerspectrum.png}}
-\end{frame}
-
-\begin{frame}
-  \frametitle{DFT of a Windowed Sinusoid}
-  \[
-  X[k] = \frac{A}{2}e^{j\theta}W_R\left(\frac{2\pi k}{N}-\omega_0\right)+
-  \frac{A}{2}e^{-j\theta}W_R\left(\frac{2\pi k}{N}+\omega_0\right)
-  \]
+  \frametitle{Summary}
   \begin{itemize}
-  \item If this formula is so complicated, how come the results on the
-    previous slide are so simple?
-  \item Answer: the window (20ms=160 samples) is an integer multiple of
-    the period (1ms=8 samples), thus $N=k_0 N_0$, and $\omega_0=\frac{2\pi k_0}{N}$.
-  \item When $\omega_0=\frac{2\pi k_0}{N}$, then
+  \item {\bf STFT as a Transform:}
     \[
-    W_R\left(\frac{2\pi k}{N}-\omega_0\right) = W_R\left(\frac{2\pi (k-k_0)}{N}\right)
-    =
-    \frac{\sin\left(\frac{2\pi (k-k_0)}{N}\frac{N}{2}\right)}{\sin\left(\frac{2\pi (k-k_0)}{N}\frac{1}{2}\right)}
-    =\begin{cases}
-    N & k=k_0\\
-    0 & \mbox{otherwise}
-    \end{cases}
+    X[k,m]= \sum_{n=m}^{m+(N-1)} w[n-m]x[n]e^{-j\omega_k (n-m)},~~~\omega_k=\frac{2\pi k}{N}
+    \]
+  \item {\bf STFT as a Filterbank:}
+    \[
+    X[k,m] = x[m] \ast h_k[-m],~~~~h_k[m] = w[m]e^{j\omega_k m}
+    \]
+  \item {\bf Other filters using STFT:}
+    \[
+    \mbox{DFT}\left\{f[n] \circledast (w[n-m]x[n])\right\} = H[k]X[k,m]
+    \]
+  \item {\bf Bandpass-Filtered Signal Power}
+    \[
+    \sum_{n=0}^{N-1} \tilde{y}[n]^2 
+    = \frac{1}{N}\sum_{k=0}^{N-1} |H[k]|^2 |X[k,m]|^2
     \]
   \end{itemize}
-\end{frame}
+\end{frame}  
 
-\begin{frame}
-  \frametitle{DFT of a Sinusoid (Easy Case)}
-  So if $\omega_0=\frac{2\pi k_0}{N}$, and 
-  \[
-  x[n] = A\cos(\omega_0 n+\theta)
-  \]
-  then
-  \[
-  X[k] = \frac{ANe^{j\theta}}{2}\delta(k-k_0)+\frac{ANe^{-j\theta}}{2}\delta(k+k_0)
-  \]
-  and
-  \[
-  |X[k]|^2 = \frac{(AN)^2}{4}\delta(k-k_0)+\frac{(AN)^2}{4}\delta(k+k_0)
-  \]
-\end{frame}
+\end{document}
 
-\begin{frame}
-  \frametitle{DFT Power Spectrum of a Pure Tone}
-  \[
-  |X[k]|^2 = \frac{(AN)^2}{4}\delta(k-k_0)+\frac{(AN)^2}{4}\delta(k+k_0)
-  \]
-  \centerline{\includegraphics[height=1.5in]{exp/tone_white_waveform.png}}
-  \centerline{\includegraphics[height=1.5in]{exp/tone_white_powerspectrum.png}}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Parseval's Theorem for a Pure Tone (Easy Case)}
-
-  The energy in the time domain is $N$ times the power.  The power of
-  a sinusoid is $A^2/2$.  So the energy is:
-  \[
-  \sum_{n=0}^{N-1} A^2\cos^2\left(\omega_0 N+\theta\right) = \frac{NA^2}{2}
-  \]
-  The energy in the frequency domain is:
-  \[
-  \frac{1}{N}\sum_{k=0}^{N-1} |X[k]|^2 =
-  \frac{1}{N}\left(\frac{(AN)^2}{4}+\frac{(AN)^2}{4}\right) =\frac{NA^2}{2}
-  \]
-\end{frame}
-
-\begin{frame}
-  \frametitle{Parseval's Theorem for a Pure Tone (Hard Case)}
-
-  The energy in the time domain is:
-  \[
-  \sum_{n=0}^{N-1} A^2\cos^2\left(\omega_0 N+\theta\right) = \frac{NA^2}{2}
-  \]
-  The energy in the frequency domain is:
-  \[
-  \frac{1}{N}\sum_{k=0}^{N-1} |X[k]|^2 =
-  \frac{A^2}{4N}\sum_{k=0}^{N-1}\left|
-  e^{j\theta}W_R\left(\frac{2\pi k}{N}-\omega_0\right)+
-  e^{-j\theta}W_R\left(\frac{2\pi k}{N}+\omega_0\right)\right|^2
-  \]
-  By setting the bottom equation equal to the top equation, we discover that
-  the two rectangular windows have a total energy of $2N^2$, totally regardless of the values
-  of $\omega_0$ and $\theta$.  So for all practical purposes, the ``Hard Case''
-  is just as easy as the ``Easy Case,'' and we can ignore the hard part.
-\end{frame}

@@ -336,12 +336,16 @@
   \[
   \frac{1}{N}\sum_{n=0}^{N-1}x^2[n] = \frac{1}{N} \sum_{k=0}^{N-1}R[k]
   \]  
-  Similary, the DTFT power spectrum of a signal is defined to be
+  Similary, the DTFT power spectrum of a signal of length $N$ can be defined to be
   $R(\omega)=\frac{1}{N}|X(\omega)|^2$, because the signal power is
   \[
   \frac{1}{N}\sum_{n=0}^{N-1}x^2[n] = \frac{1}{2\pi}\int_{-\pi}^{\pi}R(\omega)d\omega
   \]
-  We can also define an energy spectrum $E[k]=|X[k]|^2$, and $E(\omega)=|X(\omega)|^2$.
+  In this class we will almost never use the power spectrum of an
+  infinite length signal, but if we need it, it can be defined as
+  \[
+  R(\omega) = \lim_{N\rightarrow\infty}\frac{1}{N}\left|\sum_{n=-(N-1)/2}^{(N-1)/2} x[n]e^{-j\omega n}\right|^2
+  \]
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -415,7 +419,7 @@
   Notice how totally useless it would be to plot the expected value of
   the DFT --- it would always be zero!
   \[
-  E\left[X_R[k]\right]=E\left[X_R[k]\right]=0
+  E\left[X_R[k]\right]=E\left[X_I[k]\right]=0
   \]
   Instead, it's more useful to plot the variances:
   \begin{align*}
@@ -497,6 +501,9 @@
   \[
   r[n] = \frac{1}{N}x[n]\ast x[-n]  = \frac{1}{N}\sum_{m=-\infty}^\infty  x[m] x[m-n]
   \]
+  This relationship, $r[n]\leftrightarrow R(\omega)$, is called
+  Wiener's theorem, named after Norbert Wiener, the inventor of
+  cybernetics.
 \end{frame}
 
 \begin{frame}
@@ -559,15 +566,14 @@
   \begin{itemize}
   \item Masking: a pure tone can be heard, in noise, if there is {\bf at least one}
     auditory filter through which $\frac{N_k+T_k}{N_k}>$ threshold.
-  \item We can calculate the power of a noise signal by using Parseval's theorem, together with
-    its power spectrum.
+  \item {\bf Parseval's Theorem:}
     \[
     \frac{1}{N}\sum_{n=0}^{N-1}x^2[n] = \frac{1}{N}\sum_{k=0}^{N-1}R[k]=
     \frac{1}{2\pi}\int_{-\pi}^{\pi}R(\omega)d\omega
     \]
-  \item The inverse DTFT of the power spectrum is the autocorrelation
+  \item {\bf Wiener's Theorem:}
     \[
-    r[n] = \frac{1}{N} x[n]\ast x[-n]
+    R(\omega) \leftrightarrow r[n] = \frac{1}{N} x[n]\ast x[-n]
     \]
   \item The power spectrum and autocorrelation of noise are, themselves, random variables.
     For zero-mean white noise of length $N$, their expected values are
