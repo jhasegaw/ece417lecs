@@ -53,13 +53,17 @@
 
 \begin{frame}
   \frametitle{Autocorrelation}
-  The power spectrum is
+  The power spectrum of a finite-length signal of length $N$ is
   \[
   R(\omega)=\frac{1}{N}|X(\omega)|^2
   \]
   Its inverse Fourier transform is the autocorrelation,
   \[
   r[n] = \frac{1}{N}x[n]\ast x[-n]  = \frac{1}{N}\sum_{m=-\infty}^\infty  x[m] x[m-n]
+  \]
+  Or, if $x[n]$ is infinite-length, we can write
+  \[
+  r[n] = \lim_{N\rightarrow\infty}\frac{1}{N}\sum_{m=-(N-1)/2}^{(N-1)/2}x[m]x[n-m]
   \]
   This relationship, $r[n]\leftrightarrow R(\omega)$, is called
   Wiener's theorem, named after Norbert Wiener, the inventor of
