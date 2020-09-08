@@ -63,7 +63,7 @@
   \]
   Or, if $x[n]$ is infinite-length, we can write
   \[
-  r[n] = \lim_{N\rightarrow\infty}\frac{1}{N}\sum_{m=-(N-1)/2}^{(N-1)/2}x[m]x[n-m]
+  r[n] = \lim_{N\rightarrow\infty}\frac{1}{N}\sum_{m=-(N-1)/2}^{(N-1)/2}x[m]x[m-n]
   \]
   This relationship, $r[n]\leftrightarrow R(\omega)$, is called
   Wiener's theorem, named after Norbert Wiener, the inventor of
@@ -133,7 +133,7 @@
 
   Finally, we compute the DFT:
   \[
-  X[k,m] = \sum_{n=m}^{n+(N-1)} w[n-m]x[n]e^{-j2\pi k(n-m)/N} 
+  X[k,m] = \sum_{n=m}^{m+(N-1)} w[n-m]x[n]e^{-j2\pi k(n-m)/N} 
   \]
   Here it is, plotted as a function of $k$:
   \centerline{\includegraphics[height=1.5in]{librivox_dftsquared.png}}
@@ -418,7 +418,7 @@
   \begin{align*}
     \sum_{n=0}^{N-1} \tilde{y}[n]^2 
     &= \frac{1}{N}\sum_{k=0}^{N-1} |Y[k,m]|^2\\
-    &= \frac{1}{N}\sum_{k=0}^{N-1} |H[k]|^2 |X[k,m]|^2
+    &= \frac{1}{N}\sum_{k=0}^{N-1} |F[k]|^2 |X[k,m]|^2
   \end{align*}
 \end{frame}
 
@@ -444,7 +444,7 @@
   \item {\bf Bandpass-Filtered Signal Power}
     \[
     \sum_{n=0}^{N-1} \tilde{y}[n]^2 
-    = \frac{1}{N}\sum_{k=0}^{N-1} |H[k]|^2 |X[k,m]|^2
+    = \frac{1}{N}\sum_{k=0}^{N-1} |F[k]|^2 |X[k,m]|^2
     \]
   \end{itemize}
 \end{frame}  
