@@ -117,6 +117,7 @@ def plot_forward(axs, X, Y, W1, B, W2, k, E=None, H=None):
     axs[3].set_title('$ŷ=b+...+w^{(2)}_%d$'%(k))
     return(E,H, S)
     
+
 fig = matplotlib.figure.Figure(figsize=(14, 4))
 gs = matplotlib.gridspec.GridSpec(2,3,figure=fig)
 axs = []

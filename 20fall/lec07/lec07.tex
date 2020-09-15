@@ -240,13 +240,13 @@
   \begin{block}{Minimum Mean Squared Error (MMSE)}
     \[
     W^*,b^*=\arg\min {\mathcal L} = \arg\min\frac{1}{2n}\sum_{i=1}^n
-    \vert\vec{y}_{i}-\hat{y}(\vec{x}_i)\vert^2
+    \Vert\vec{y}_{i}-\hat{y}(\vec{x}_i)\Vert^2
     \]
   \end{block}
   \begin{block}{MMSE Solution: $\hat{y}\rightarrow E\left[\vec{y}|\vec{x}\right]$}
     If the training samples $(\vec{x}_i,\vec{y}_i)$ are i.i.d., then
     \[
-    \lim_{n\rightarrow\infty}{\mathcal L} = \frac{1}{2}E\left[\vert\vec{y}-\hat{y}\vert^2\right]
+    \lim_{n\rightarrow\infty}{\mathcal L} = \frac{1}{2}E\left[\Vert\vec{y}-\hat{y}\Vert^2\right]
     \]
     which is minimized by
     \[
@@ -326,12 +326,12 @@
     \sum_{i=1}^n
     \left(\frac{\partial{\mathcal L}}{\partial e_{ki}^{(2)}}\right)
     \left(\frac{\partial e_{ki}^{(2)}}{\partial w_{kj}^{(2)}}\right)\\
-    &= \sum_{i=1}^n \epsilon_{ki}y_{ki}
+    &= \sum_{i=1}^n \epsilon_{ki}h_{ki}
   \end{align*}
   where the last line only works if we define $\epsilon_{ki}$ in
   a useful way:
   \begin{align*}
-    \vec\epsilon &= [\epsilon_{1i},\ldots,\epsilon_{Ki}]^T \\
+    \vec\epsilon_i &= [\epsilon_{1i},\ldots,\epsilon_{Ki}]^T \\
     &= \nabla_{\vec{e}_{i}^{(2)}}{\mathcal L}~~~
     \left(\mbox{meaning that}~\epsilon_{ki}=\frac{\partial{\mathcal L}}{\partial e_{ki}^{(2)}}\right)\\
     &= \frac{1}{n}(\hat{y}_{i}-\vec{y}_{i})
@@ -521,7 +521,7 @@
   \begin{align*}
     W^{(1)} &\leftarrow W^{(1)}-\eta\nabla_{W^{(1)}}{\mathcal L}
     = W^{(1)}-\eta\sum_{i=1}^n \vec\delta_i\vec{x}_i^T\\
-    &= W^{(1)}-\eta\sum_{i=1}^n \left(\sigma'(\vec{e}_i^{(1)})\odot W^{(1),T}\vec\epsilon_i\right)\vec{x}_i^T
+    &= W^{(1)}-\eta\sum_{i=1}^n \left(\sigma'(\vec{e}_i^{(1)})\odot W^{(2),T}\vec\epsilon_i\right)\vec{x}_i^T
   \end{align*}
   Thinking in terms of the rows of $W^{(1)}$, we have
   \[
