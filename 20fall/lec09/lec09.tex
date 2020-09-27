@@ -1,0 +1,492 @@
+\documentclass{beamer}
+\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc}
+\newcommand{\argmax}{\operatornamewithlimits{argmax}}
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\mode<presentation>{\usetheme{Frankfurt}}
+\DeclareMathOperator*{\softmax}{softmax}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 9: Convolutional Neural Nets}
+\author{Mark Hasegawa-Johnson}
+\date{ECE 417: Multimedia Signal Processing, Fall 2020}  
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Review]{Review: Neural Network}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Review: How to train a neural network}
+  \begin{enumerate}
+  \item Find a {\bf training dataset} that contains $n$ examples showing the
+    desired output, $\vec{y}_i$, that the NN should compute in
+    response to input vector $\vec{x}_i$:
+    \[
+    {\mathcal D}=\left\{(\vec{x}_1,\vec{y}_1),\ldots,(\vec{x}_n,\vec{y}_n)\right\}
+    \]
+    \item Randomly {\bf initialize} the weights and biases, $W^{(1)}$,
+      $\vec{b}^{(1)}$, $W^{(2)}$, and $\vec{b}^{(2)}$.
+    \item Perform {\bf forward propagation}: find out what the neural
+      net computes as $\hat{y}_i$ for each $\vec{x}_i$.
+    \item Define a {\bf loss function} that measures
+      how badly $\hat{y}$ differs from $\vec{y}$.
+    \item Perform {\bf back propagation} to improve $W^{(1)}$,
+      $\vec{b}^{(1)}$, $W^{(2)}$, and $\vec{b}^{(2)}$.
+    \item Repeat steps 3-5 until convergence.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Review: Second Layer = Piece-Wise Approximation}
+
+  The second layer of the network approximates $\hat{y}$ using a bias term $\vec{b}$,
+  plus correction vectors $\vec{w}_j^{(2)}$, each scaled by its activation $h_j$:
+  \[
+  \hat{y} = \vec{b}^{(2)} + \sum_j \vec{w}_{j}^{(2)} h_j
+  \]
+  \begin{itemize}
+  \item Unit-step and signum nonlinearities, on the hidden layer,
+    cause the neural net to compute a piece-wise constant approximation
+    of the target function. Sigmoid and tanh are differentiable approximations of
+    unit-step and signum, respectively.
+  \item ReLU, Leaky ReLU, and PReLU activation functions cause $h_j$,
+    and therefore $\hat{y}$, to be a piece-wise-linear function of its
+    inputs.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Review: First Layer = A Series of Decisions}
+
+  The first layer of the network decides whether or not to ``turn on'' each of the
+  $h_j$'s.  It does this by comparing $\vec{x}$ to a series of linear threshold vectors:
+  \[
+  h_k = \sigma\left(\bar{w}_k^{(1)}\vec{x}+b_k\right)\begin{cases}
+  >0 & \bar{w}_k^{(1)}\vec{x} +b_k > 0\\
+  =0 & \bar{w}_k^{(1)}\vec{x} +b_k < 0
+  \end{cases}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Gradient Descent: How do we improve $W$ and $b$?}  Given
+  some initial neural net parameter (called $u_{kj}$ in this figure),
+  we want to find a better value of the same parameter.  We do that
+  using gradient descent:
+  \[
+  u_{kj} \leftarrow u_{kj}-\eta\frac{d{\mathcal L}}{du_{kj}},
+  \]
+  where $\eta$ is a learning rate (some small constant, e.g., $\eta=0.02$ or so).
+  \centerline{\includegraphics[width=2in]{../lec07/figs/nn_errorsurf1.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Error Metrics Summarized}
+  \begin{itemize}
+    \item Use MSE to achieve $\hat{y}\rightarrow
+      E\left[\vec{y}|\vec{x}\right]$.  That's almost always what you
+      want.
+    \item For a binary classifier with a sigmoid output, BCE loss gives you
+      the MSE result without the vanishing gradient problem.
+    \item For a multi-class classifier with a softmax output, CE loss gives you
+      the MSE result without the vanishing gradient problem.
+    \item After you're done training, you can make your cell phone app
+      more efficient by throwing away the uncertainty:
+      \begin{itemize}
+      \item Replace softmax output nodes with max
+      \item Replace logistic output nodes with unit-step
+      \item Replace tanh output nodes with signum
+      \end{itemize}
+  \end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Convolutional Layers}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Multimedia Inputs = Too Much Data}
+  \begin{columns}[t]
+    \column{1in}
+    \begin{block}{}
+      \centerline{\includegraphics[width=0.8in]{figs/kitten.jpg}}
+    \end{block}
+    \column{3.5in}
+    \begin{block}{Does this image contain a  cat?}
+      Fully-connected solution:
+      \begin{align*}
+        \hat{y} &=\sigma\left(W^{(2)}\vec{h}\right)\\
+        \vec{h} &= \mbox{ReLU}\left(W^{(1)}\vec{x}\right)
+      \end{align*}
+      where $\vec{x}$ contains all the pixels.
+      \begin{itemize}
+      \item Image size $2000\times 3000\times 3=18,000,000$ dimensions in $\vec{x}$.
+      \item If $\vec{h}$ has 500 dimensions, then $W^{(1)}$ has
+        $500\times 18,000,000=9,000,000,000$ parameters.
+      \item \ldots so we should use at least $9,000,000,000$ images to train it.
+      \end{itemize}
+    \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Shift Invariance}
+  \centerline{\includegraphics[height=1.5in]{figs/IMG-20200826-WA0000.jpg}}
+    The cat has moved.  The fully-connected network has no way to
+    share information between the rows of $W^{(1)}$ that look at the
+    center of the image, and the rows that look at the right-hand side.
+\end{frame}
+
+\begin{frame}
+  \frametitle{How to achieve shift invariance: Convolution}
+
+  Instead of using vectors as layers, let's use images.
+  \begin{align*}
+    e^{(l)}[m,n,d] &= \sum_c\sum_{m'}\sum_{n'} w^{(l)}[m',n',c,d]h^{(l-1)}[m-m',n-n',c]
+  \end{align*}
+  where
+  \begin{itemize}
+  \item $e^{(l)}[m,n,c]$ and $h^{(l)}[m,n,c]$ are excitation and
+    activation (respectively) of the $(m,n)^{\textrm{th}}$ pixel, in
+    the $c^{\textrm{th}}$ channel, in the $l^{\textrm{th}}$ layer.
+  \item $w^{(l)}[m,n,c,d]$ are the weights.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{How to achieve shift invariance: Convolution}
+
+  \centerline{\animategraphics[loop,controls,height=2.5in]{4}{exp/forward}{0}{99}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{How to use convolutions in a classifier}
+  \begin{itemize}
+  \item The zero$^{\textrm{th}}$ layer is the input image:
+    \[
+    h^{(0)}[m,n,c] = x[m,n,c]
+    \]
+  \item Excitation and activation:
+    \begin{align*}
+      e^{(l)}[m,n,d] &= \sum_c\sum_{m'}\sum_{n'} w[m',n',c,d]h^{(l-1)}[m-m',n-n',c]\\
+      h^{(l)}[m,n,d] &= \mbox{ReLU}\left(e^{(l)}[m,n,d]\right)
+    \end{align*}
+  \item Reshape the last convolutional layer into a vector, to form
+    the first fully-connected layer:
+    \[
+    h^{(L+1)}_{cN^2+mN+n} = h^{(L)}[m,n,c]
+    \]
+    where $N$ is the image dimension  (both height and width).
+  \end{itemize}
+\end{frame}
+      
+\begin{frame}
+  \frametitle{How to use convolutions in a classifier}
+
+  \centerline{\includegraphics[width=4.5in]{figs/Typical_cnn.png}}
+  \begin{tiny}
+    ``Typical CNN,'' by Aphex34 2015, CC-SA 4.0,
+    \url{https://commons.wikimedia.org/wiki/File:Typical_cnn.png}
+  \end{tiny}
+\end{frame}
+
+\begin{frame}
+  \frametitle{How to back-prop through a convolutional neural net}
+
+  You already know how to back-prop through fully-connected layers.  Now let's
+  back-prop through convolution:
+  \begin{displaymath}
+    \frac{d{\mathcal L}}{dh^{(l-1)}[m',n',c]} =
+    \sum_{m}\sum_n\sum_d\frac{d{\mathcal L}}{de^{(l)}[m,n,d]}
+    \frac{\partial e^{(l)}[m,n,d]}{\partial h^{(l-1)}[m',n',c]}
+  \end{displaymath}
+  The partial derivative is easy:
+  \begin{align*}
+    e^{(l)}[m,n,d] &= \sum_c\sum_{m'}\sum_{n'} w[m-m',n-n',c,d]h^{(l-1)}[m',n',c]\\
+    \frac{\partial e^{(l)}[m,n,d]}{\partial h^{(l-1)}[m',n',c]} &= w[m-m',n-n',c,d]
+  \end{align*}
+  Putting all of the above equations together, we get:
+  \begin{displaymath}
+    \frac{d{\mathcal L}}{dh^{(l-1)}[m',n',c]} =
+    \sum_{m}\sum_n\sum_d w^{(l)}[m-m',n-n',c,d]\frac{d{\mathcal L}}{de^{l}[m,n,d]}
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Convolution forward, Correlation backward}
+
+  In signal processing, we defined $x[n]\ast h[n]$ to mean $\sum
+  h[m]x[n-m]$.  Let's use the same symbol to refer to this
+  multi-channel 2D convolution:
+  \begin{align*}
+    e^{(l)}[m,n,d] &= \sum_c\sum_{m'}\sum_{n'} w^{(l)}[m-m',n-n',c,d]h^{(l-1)}[m',n',c]\\
+    &\equiv w^{(l)}[m,n,c,d] \ast h^{(l-1)}[m,n,c]
+  \end{align*}
+  Back-prop, then, is also a kind of convolution, but with the filter
+  flipped left-to-right and top-to-bottom.  Flipped convolution is also
+  known as ``correlation.''
+  \begin{align*}
+    \frac{d{\mathcal L}}{dh^{(l-1)}[m,n,d]} &=
+    \sum_{m'}\sum_{n'}\sum_c w^{(l)}[m'-m,n'-n,d,c]\frac{d{\mathcal L}}{de^{l}[m',n',c]}\\
+    &= w^{(l)}[-m,-n,d,c] \ast \frac{d{\mathcal L}}{de^{l}[m,n,c]}\\
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Back-prop through a convolutional layer}
+
+  \centerline{\animategraphics[loop,controls,height=2.5in]{4}{exp/backward}{0}{74}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Similarities between convolutional and fully-connected back-prop}
+
+  \begin{itemize}
+  \item In a fully-connected layer, forward-prop is a matrix multiply.
+    Back-prop is multiplication by the transpose of the same matrix:
+    \begin{align*}
+      \vec{e}^{(l)} &= W^{(l)}\vec{h}^{(l-1)}\\
+      \nabla_{\vec{h}^{(l-1)}}{\mathcal L} &= \left(W^{(l)}\right)^T\nabla_{\vec{e}^{(l)}}{\mathcal L}
+    \end{align*}
+  \item In a convolutional layer, forward-prop is a convolution,
+    Back-prop is a correlation:
+    \begin{align*}
+    e^{(l)}[m,n,d] &= w^{(l)}[m,n,c,d] \ast h^{(l-1)}[m,n,c]\\
+    \frac{d{\mathcal L}}{dh^{(l-1)}[m,n,d]} &=
+    w^{(l)}[-m,-n,d,c] \ast \frac{d{\mathcal L}}{de^{(l)}[m,n,c]}\\
+    \end{align*}
+  \end{itemize}
+\end{frame}
+    
+\begin{frame}
+  \frametitle{Convolutional layers: Weight gradient}
+
+  Finally, we need to combine back-prop and forward-prop in order to
+  find  the weight gradient:
+  \begin{align*}
+    \frac{d{\mathcal L}}{dw^{(l)}[m',n',c,d]} &=
+    \sum_{m}\sum_n\frac{d{\mathcal L}}{de^{(l)}[m,n,d]}
+    \frac{\partial e^{(l)}[m,n,d]}{\partial w^{(l)}[m',n',c,d]}
+  \end{align*}
+  Again, the partial derivative is very easy to compute:
+  \begin{align*}
+    e^{(l)}[m,n,d] &= \sum_c\sum_{m'}\sum_{n'} w[m',n',c,d]h^{(l-1)}[m-m',n-n',c]\\
+    \frac{\partial e^{(l)}[m,n,d]}{\partial w^{(l-1)}[m',n',c]} &= h^{(l-1)}[m-m',n-n',c]
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Convolutional layers: Weight gradient}
+
+  \begin{align*}
+    \frac{d{\mathcal L}}{dw^{(l)}[m',n',c,d]} &=
+    \sum_{m}\sum_n\frac{d{\mathcal L}}{de^{(l)}[m,n,d]}
+    \frac{\partial e^{(l)}[m,n,d]}{\partial w^{(l)}[m',n',c,d]}
+  \end{align*}
+  \begin{align*}
+    \frac{\partial e^{(l)}[m,n,d]}{\partial w^{(l-1)}[m',n',c]} &= h^{(l-1)}[m-m',n-n',c]
+  \end{align*}
+  Putting those together, we discover that the weight gradient is ALSO a convolution!!!
+  \begin{align*}
+    \frac{d{\mathcal L}}{dw^{(l)}[m',n',c,d]} &=
+    \sum_{m}\sum_n \frac{d{\mathcal L}}{de^{(l)}[m,n,d]}h^{(l-1)}[m-m',n-n',c]\\
+    &= \frac{d{\mathcal L}}{de^{(l)}[m',n',d]} \ast h^{(l-1)}[m',n',c]\\
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Steps in training a CNN}
+  \begin{enumerate}
+  \item Forward-prop:
+    \begin{align*}
+      e^{(l)}[m,n,d] &= w^{(l)}[m,n,c,d] \ast h^{(l-1)}[m,n,c]
+    \end{align*}
+  \item Back-prop:
+    \begin{align*}
+      \frac{d{\mathcal L}}{dh^{(l-1)}[m,n,d]} &=
+      w^{(l)}[-m,-n,d,c] \ast \frac{d{\mathcal L}}{de^{(l)}[m,n,c]}
+    \end{align*}
+  \item Weight gradient:
+    \begin{align*}
+      \frac{d{\mathcal L}}{dw^{(l)}[m,n,c,d]} &=
+      \frac{d{\mathcal L}}{de^{(l)}[m,n,d]} \ast h^{(l-1)}[m,n,c]
+    \end{align*}
+  \end{enumerate}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Max Pooling}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Features and PWL Functions}
+
+  Remember the PWL model of a ReLU neural net:
+  \begin{enumerate}
+  \item The hidden layer activations are positive if some feature is
+    detected in the input, and zero otherwise.
+  \item The rows of the output layer are vectors, scaled by the hidden
+    layer activations, in order to approximate some desired
+    piece-wise-linear (PWL) output function.
+  \item What happens next is different for regression and
+    classification:
+    \begin{enumerate}
+    \item Regression: The PWL output function is the desired output.
+    \item Classification: The PWL function is squashed down to the
+      $[0,1]$ range using a sigmoid.
+    \end{enumerate}
+  \end{enumerate}
+\end{frame}
+       
+\begin{frame}
+  \frametitle{Features and PWL Functions}
+
+  In image processing, often we don't care where in the image the
+  ``feature'' occurs:
+  \centerline{\includegraphics[height=2in]{figs/kitten.jpg}\hspace*{1cm}
+    \includegraphics[height=2in]{figs/IMG-20200826-WA0000.jpg}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Features and PWL Functions}
+
+  Sometimes we care {\bf\em roughly} where the feature occurs, but not
+  exactly.  Blue at the bottom is sea, blue at the top is sky:
+  \centerline{\includegraphics[height=1.5in]{figs/sea.jpg}\hspace*{1cm}\includegraphics[height=1.5in]{figs/sky.jpg}}
+  \begin{tiny}
+    ``Paracas National Reserve,'' World Wide Gifts, 2011, CC-SA 2.0,
+    \url{https://commons.wikimedia.org/wiki/File:Paracas_National_Reserve,_Ica,_Peru-3April2011.jpg}.
+    ``Clouds above Earth at 10,000 feet,'' Jessie Eastland, 2010, CC-SA 4.0,
+    \url{https://commons.wikimedia.org/wiki/File:Sky-3.jpg}.
+  \end{tiny}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Max Pooling}
+  \begin{itemize}
+  \item Philosophy: the activation $h^{(l)}[m,n,c]$ should be greater
+    than zero if the corresponding feature is detected anywhere within
+    the vicinity of pixel $(m,n)$.  In fact, let's look for the {\em
+      best matching} input pixel.
+  \item Equation:
+    \begin{displaymath}
+      h^{(l)}[m,n,c] = \max_{m'=0}^{M-1}\max_{n'=0}^{M-1} \mbox{ReLU}\left(e^{(l)}[mM+m',nM+n',c]\right)
+    \end{displaymath}
+    where $M$ is a max-pooling factor (often $M=2$, but not always).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Max Pooling}
+  \centerline{\includegraphics[height=2in]{figs/Max_pooling.png}}
+  \begin{tiny}
+    ``max pooling with 2x2 filter and stride = 2,'' Aphex34, 2015, CC SA 4.0,
+    \url{https://commons.wikimedia.org/wiki/File:Max_pooling.png}
+  \end{tiny}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Back-Prop for Max Pooling}
+
+  The back-prop is pretty easy to understand.  The activation gradient,
+  $\frac{d{\mathcal L}}{dh^{(l)}[m,n,c]}$, is back-propagated to just one of
+  the excitation gradients in its pool: the one that had the maximum value.
+  \[
+  \frac{d{\mathcal L}}{de^{(l)}[mM+m',nM+n',c]}=
+  \begin{cases}
+    \frac{d{\mathcal L}}{dh^{(l)}[m,n,c]} & \begin{array}{l}m'=m^*,~n'=n^*,\\h^{(l)}[m,n,c]>0,\end{array}\\
+    0 & \mbox{otherwise},
+  \end{cases}
+  \]
+  where
+  \[
+  m^*,n^* =\argmax_{m',n'} e^{(l)}[mM+m',nM+n',c],
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Other types of pooling}
+  \begin{itemize}
+  \item {\bf Average pooling:}
+    \begin{displaymath}
+      h^{(l)}[m,n,c] = \frac{1}{M^2}\sum_{m'=0}^{M-1}\sum_{n'=0}^{M-1} \mbox{ReLU}\left(e^{(l)}[mM+m',nM+n',c]\right)
+    \end{displaymath}
+    Philosophy: instead of finding the pixels that best match the feature,
+    find the average degree of match.
+%  \item {\bf Lp pooling:}
+%    \begin{displaymath}
+%      h^{(l)}[m,n,c] =
+%      \left(\frac{1}{M^2}\sum_{m'=0}^{M-1}\sum_{n'=0}^{M-1} \mbox{ReLU}^{p}\left(e^{(l)}[mM+m',nM+n',c]\right)\right)^{1/p}
+%    \end{displaymath}
+%    Philosophy: Equals average pooling for $p=1$, approaches max pooling for $p\rightarrow\infty$.
+  \item {\bf Decimation pooling:}
+    \begin{displaymath}
+      h^{(l)}[m,n,c] = \mbox{ReLU}\left(e^{(l)}[mM,nM,c]\right)
+    \end{displaymath}
+    Philosophy: the convolution has already done the averaging for you, so
+    it's OK to just  throw away the other $M^2-1$ inputs.
+  \end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Papers]{A Few Important Papers}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{``Consonant recognition by modular construction of large
+    phonemic time-delay neural networks,'' Waibel, 1989 (1D
+    convolution for speech)}
+  \centerline{\includegraphics[height=2.75in]{figs/waibel1989.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{``Handwritten digit recognition with a back-propagation
+    network,'' LeCun, Boser, Denker, Henderson, Howard, Hubbard \&
+    Jackel, 1990 (2D convolution, decimation pooling)}
+  \centerline{\includegraphics[width=4.5in]{figs/lecun1990.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{``Imagenet Classification with Deep Convolutional Neural
+    Networks,'' Krizhevsky, Sutskever \& Hinton, 2012 (GPU training)}
+  \centerline{\includegraphics[width=4.75in]{figs/krizhevsky2012.png}}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Summary}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Summary}
+  \begin{itemize}
+  \item Convolutional layers: forward-prop is a convolution, back-prop
+    is a correlation, weight gradient is a convolution.
+  \item Max pooling: back-prop just propagates the derivative to the
+    pixel that was chosen by forward-prop.
+  \item Many-layer CNNs trained on GPUs, with small convolutions in
+    each layer, have won Imagenet every year since 2012, and are now a
+    component in every image, speech, audio, and video processing
+    system.
+  \end{itemize}
+\end{frame}
+
+\end{document}
+

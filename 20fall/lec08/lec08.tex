@@ -244,7 +244,7 @@
   \item When we begin training, we start with small values of $w$.
     $\sigma'(wx)$ is reasonably large, and training proceeds.
   \item If $w$ and $\nabla_{w}{\mathcal L}$ are vectors in opposite
-    directions, then $w\rightarrow w-\eta\nabla_{w}{\mathcal L}$ makes
+    directions, then $w\leftarrow w-\eta\nabla_{w}{\mathcal L}$ makes
     $w$ larger.  After a few iterations, $w$ gets very large.  At that
     point, $\sigma'(wx)\rightarrow 0$, and training effectively stops.
   \item After that point, even if the neural net sees new training
