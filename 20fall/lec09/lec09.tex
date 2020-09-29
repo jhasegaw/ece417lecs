@@ -1,5 +1,5 @@
 \documentclass{beamer}
-\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate}
+\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate,setspace}
 \usetikzlibrary{positioning,shadows,arrows,shapes,calc}
 \newcommand{\argmax}{\operatornamewithlimits{argmax}}
 \newcommand{\argmin}{\operatornamewithlimits{argmin}}
@@ -450,23 +450,43 @@
 \setcounter{subsection}{1}
 
 \begin{frame}
-  \frametitle{``Consonant recognition by modular construction of large
-    phonemic time-delay neural networks,'' Waibel, 1989 (1D
-    convolution for speech)}
-  \centerline{\includegraphics[height=2.75in]{figs/waibel1989.png}}
+  \begin{columns}
+    \column{2in}
+    \begin{block}{``Phone Recognition: Neural Networks vs.~Hidden Markov Models,'' Waibel, Hanazawa,
+        Hinton, Shikano and Lang, 1988}
+      \begin{itemize}
+      \item 1D convolution
+      \item average pooling
+      \item max pooling invented by Yamaguchi et  al., 1990, based on this architecture
+      \end{itemize}
+      \begin{tiny}
+        {\setstretch{0.5}
+          Image copyright Waibel et al., 1988, released CC-BY-4.0 2018,
+          \url{https://commons.wikimedia.org/wiki/File:TDNN_Diagram.png}
+          
+        }
+      \end{tiny}
+    \end{block}
+    \column{2in}
+    \begin{block}{}
+      \centerline{\includegraphics[height=3in]{figs/waibel1989.png}}
+    \end{block}
+  \end{columns}
 \end{frame}
 
 \begin{frame}
-  \frametitle{``Handwritten digit recognition with a back-propagation
-    network,'' LeCun, Boser, Denker, Henderson, Howard, Hubbard \&
-    Jackel, 1990 (2D convolution, decimation pooling)}
+  \frametitle{``Backpropagation Applied to Handwritten Zip Code
+    Recognition,'' LeCun, Boser, Denker \& Henderson, 1989 (2D
+    convolution, decimation pooling)}
   \centerline{\includegraphics[width=4.5in]{figs/lecun1990.png}}
+  \begin{tiny}Image copyright Lecun, Boser, et al., 1990\end{tiny}
 \end{frame}
 
 \begin{frame}
   \frametitle{``Imagenet Classification with Deep Convolutional Neural
     Networks,'' Krizhevsky, Sutskever \& Hinton, 2012 (GPU training)}
   \centerline{\includegraphics[width=4.75in]{figs/krizhevsky2012.png}}
+  \begin{tiny}Image copyright Krizhevsky, Sutskever \& Hinton, 2012\end{tiny}
 \end{frame}
 
 
