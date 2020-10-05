@@ -324,7 +324,7 @@
   \begin{align*}
     \frac{d{\mathcal L}}{dw_{kj}^{(2)}} &=
     \sum_{i=1}^n
-    \left(\frac{\partial{\mathcal L}}{\partial e_{ki}^{(2)}}\right)
+    \left(\frac{d{\mathcal L}}{de_{ki}^{(2)}}\right)
     \left(\frac{\partial e_{ki}^{(2)}}{\partial w_{kj}^{(2)}}\right)\\
     &= \sum_{i=1}^n \epsilon_{ki}h_{ki}
   \end{align*}
@@ -349,7 +349,7 @@
     \begin{align*}
       \frac{d{\mathcal L}}{dw_{kj}^{(2)}} &=
       \sum_{i=1}^n
-      \left(\frac{\partial{\mathcal L}}{\partial\hat{y}_{ki}}\right)
+      \left(\frac{d{\mathcal L}}{d\hat{y}_{ki}}\right)
       \left(\frac{\partial\hat{y}_{ki}}{\partial w_{kj}^{(2)}}\right)
     \end{align*}
   \item The notation $\frac{\partial{\mathcal
@@ -389,7 +389,7 @@
     \begin{align*}
       \delta_{ki} &=\frac{d{\mathcal L}}{de_{ki}^{(1)}}\\
       &= \sum_{\ell=1}^K
-      \left(\frac{\partial{\mathcal L}}{\partial e_{\ell i}^{(2)}}\right)
+      \left(\frac{d{\mathcal L}}{de_{\ell i}^{(2)}}\right)
       \left(\frac{\partial e_{\ell i}^{(2)}}{\partial h_{ki}}\right)
       \left(\frac{\partial h_{ki}}{\partial e_{ki}^{(1)}}\right)
     \end{align*}
@@ -402,7 +402,7 @@
     \begin{align*}
       \delta_{ki} 
       &= \sum_{\ell=1}^K
-      \left(\frac{\partial{\mathcal L}}{\partial e_{\ell i}^{(2)}}\right)
+      \left(\frac{d{\mathcal L}}{de_{\ell i}^{(2)}}\right)
       \left(\frac{\partial e_{\ell i}^{(2)}}{\partial h_{ki}}\right)
       \left(\frac{\partial h_{ki}}{\partial e_{ki}^{(1)}}\right)\\
       &= \sum_{\ell=1}^K \epsilon_{\ell i}w_{\ell k}^{(2)}\sigma'(e_{ki}^{(1)})
