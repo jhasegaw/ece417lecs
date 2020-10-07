@@ -1,0 +1,901 @@
+\documentclass{beamer}
+\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate,tipa}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc}
+\newcommand{\ipa}[1]{\textipa{#1}}
+\newcommand{\argmax}{\operatornamewithlimits{argmax}}
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\mode<presentation>{\usetheme{Frankfurt}}
+\DeclareMathOperator*{\softmax}{softmax}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 12: Hidden Markov Models}
+\author{Mark Hasegawa-Johnson\\All content~\href{https://creativecommons.org/licenses/by-sa/4.0/}{CC-SA 4.0} unless otherwise specified.}
+\date{ECE 417: Multimedia Signal Processing, Fall 2020}  
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Review]{Review: Bayesian Probabilities and Neural Networks}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Review: Bayesian probabilities and Neural nets}
+  Here's how we can estimate the four Bayesian probabilities using a neural net:
+  \begin{enumerate}
+  \item {\bf Prior:}
+    \begin{displaymath}
+      p(q=i) = \frac{\mbox{\# times $q=i$ occurred in training data}}{\mbox{\# frames in training data}}
+    \end{displaymath}
+  \item {\bf Posterior:}
+    \begin{displaymath}
+      p(q=i|\vec{x}) = \softmax\left(e[i]\right)
+    \end{displaymath}
+  \end{enumerate}
+\end{frame}
+
+    
+\begin{frame}
+  \frametitle{Review: Bayesian probabilities and Neural nets}
+  Here's how we can estimate the four Bayesian probabilities using a neural net:
+  \begin{enumerate}
+  \item {\bf Evidence:}
+    \begin{displaymath}
+      p(\vec{x}) = G\sum_j\exp(e[j])
+    \end{displaymath}
+    for some unknown value of $G$.
+  \item {\bf Likelihood:}
+    \begin{displaymath}
+      p(\vec{x}|q=i) = \frac{G\exp(e[i])}{p(q=i)}
+    \end{displaymath}
+  \end{enumerate}
+  We have to be a little careful in our derivations, but usually we
+  can just choose some value of $G$ with good numerical properties,
+  like $G=1/\max_j \exp(e[j])$ for example.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[HMM]{Hidden Markov Models}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Notation: Inputs and Outputs}
+
+  \begin{itemize}
+  \item Let's assume we have $T$ consecutive 
+    observations, $X=[\vec{x}_1,\ldots,\vec{x}_T]$.
+  \item A ``hidden Markov model'' represents those probabilities by
+    assuming some sort of ``hidden'' state sequence,
+    $Q=[q_1,\ldots,q_T]$, where $q_t$ is the hidden (unknown) state
+    variable at time $t$.
+  \end{itemize}
+  The idea is, can we model these probabilities well enough to solve
+  problems like:
+  \begin{enumerate}
+  \item {\bf Recognition:} What's $p(X)$ given the  model?
+  \item {\bf Segmentation:} What state is the model in at time $t$?
+  \item {\bf Training:} Can we learn a model to fit some data?
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{HMM: Key Concepts}
+
+  An HMM is a ``generative model,'' meaning that it models the joint
+  probability $p(Q,X)$ using a model of the way in which those data
+  might have been generated.  An HMM pretends the following
+  generative process:
+  \begin{enumerate}
+  \item Start in state $q_t=i$ with pmf $\pi_i=p(q_1=i)$.
+  \item Generate an observation, $\vec{x}$, with pdf $b_i(\vec{x})=p(\vec{x}|q_t=i)$.
+  \item Transition to a new state, $q_{t+1}=j$, according to pmf $a_{ij}=p(q_{t+1}=j|q_t=i)$.
+  \item Repeat.
+  \end{enumerate}
+\end{frame}
+\begin{frame}
+  \frametitle{HMM: Finite State Diagram}
+
+  \begin{center}
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick,
+        state/.style={circle,thick,draw=blue,text=black,text centered,text width=0.25cm},
+        obs/.style={rectangle,thick,draw=blue,text=black,fill=orange!35!white,text centered,text width=0.25cm}
+      ]
+      \node[state] (q1) at (0,0) {1};
+      \node[state] (q2) at (2.5,0) {2};
+      \node[state] (q3) at (5,0) {3};
+      \node[obs] (x1) at (0,-2) {$\vec{x}$};
+      \node[obs] (x2) at (2.5,-2) {$\vec{x}$};
+      \node[obs] (x3) at (5,-2) {$\vec{x}$};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q1) edge [out=120,in=60,looseness=4] node {$a_{11}$} (q1)
+      edge [out=30,in=150] node {$a_{12}$} (q2)
+      edge [out=45,in=135] node {$a_{13}$} (q3)
+      edge [out=-90,in=90] node {$b_1(\vec{x})$} (x1)
+      (q2) edge [out=120,in=60,looseness=4] node {$a_{22}$} (q2)
+      edge [out=180,in=0] node {$a_{21}$} (q1)
+      edge [out=30,in=150] node {$a_{23}$} (q3)
+      edge [out=-90,in=90] node {$b_2(\vec{x})$} (x2)
+      (q3) edge [out=120,in=60,looseness=4] node {$a_{33}$} (q3)
+      edge [out=180,in=0] node {$a_{32}$} (q2)
+      edge [out=-160,in=-20] node {$a_{31}$} (q1)
+      edge [out=-90,in=90] node {$b_3(\vec{x})$} (x3);
+    \end{tikzpicture}
+  \end{center}
+  \begin{enumerate}
+  \item Start in state $q_t=i$, for some $1\le i\le N$.
+  \item Generate an observation, $\vec{x}$, with pdf $b_i(\vec{x})$.
+  \item Transition to a new state, $q_{t+1}=j$, according to pmf $a_{ij}$.
+  \item Repeat steps \#2 and \#3, $T$ times each.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Notation: Model Parameters}
+
+  Solving an HMM is possible if you {\bf carefully keep track of
+  notation}.  Here's standard notation for the parameters:
+  \begin{itemize}
+  \item $\pi_i = p(q_1=i)$ is called the {\bf initial state probability}.
+    Let $N$ be the number of different states, so that $1\le i\le N$.
+  \item $a_{ij} = p(q_t=j|q_{t-1}=i)$ is called the {\bf transition
+    probability}, $1\le i,j\le N$.
+  \item $b_j(\vec{x}) = p(\vec{x}_t=\vec{x}|q_t=j)$ is called the
+    {\bf observation probability}.  It is usually estimated by
+    a neural network, though simpler models (e.g., Gaussians, lookup tables)
+    are possible.
+  \item $\Lambda$ is the complete set of {\bf model parameters},
+    including all the $\pi_i$'s and $a_{ij}$'s, and the neural net
+    parameters necessary to compute $b_j(\vec{x})$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Three Problems for an HMM}
+
+  \begin{enumerate}
+  \item {\bf Recognition:} Given two different HMMs, $\Lambda_1$ and
+    $\Lambda_2$, and an observation sequence $X$.  Which HMM was more
+    likely to have produced $X$?  In other words, 
+    $p(X|\Lambda_1)>p(X|\Lambda_2)$?
+  \item {\bf Segmentation:} What is $p(q_t=i|X,\Lambda)$?
+  \item {\bf Training:} Given an initial HMM $\Lambda$, and an
+    observation sequence $X$, can we find $\Lambda'$ such that
+    $p(X|\Lambda') > p(X|\Lambda)$?
+  \end{enumerate}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Recognition]{Recognition: the Forward Algorithm}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{The HMM Recognition Problem}
+
+  \begin{itemize}
+  \item Given \begin{itemize} \item $X = [\vec{x}_1,\ldots,\vec{x}_T]$ and
+    \item $\Lambda=\left\{\pi_i,a_{ij},b_j(\vec{x})\forall i,j\right\}$,\end{itemize} what is $p(X|\Lambda)$?
+  \item Let's solve a simpler problem first:
+  \item Given \begin{itemize}\item $X = [\vec{x}_1,\ldots,\vec{x}_T]$ and
+    \item $Q = [q_1,\ldots,q_T]$ and
+    \item $\Lambda=\left\{\pi_i,a_{ij},b_j(\vec{x})\forall i,j\right\}$,\end{itemize} what is $p(X|\Lambda)$?
+  \end{itemize}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{Joint Probability of State Sequence and Observation Sequence}
+
+  The joint probability of the state sequence and the observation
+  sequence is calculated iteratively, from beginning to end:
+  \begin{itemize}
+  \item The probability that $q_1=q_1$ is $\pi_{q_1}$.
+  \item Given $q_1$, the probability of $\vec{x}_1$ is $b_{q_1}(\vec{x}_1)$.
+  \item Given $q_1$, the probability of $q_2$ is $a_{q_1q_2}$.
+  \item \ldots and so on\ldots
+  \end{itemize}
+  \[
+  p(Q,X|\Lambda)=\pi_{q_1}b_{q_1}(\vec{x}_1)\prod_{t=2}^T a_{q_{t-1}q_t}b_{q_t}(\vec{x}_t)
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Probability of the Observation Sequence}
+
+  The probability of the observation sequence, alone, is somewhat
+  harder, because we have to solve this sum:
+  \begin{align*}
+    p(X|\Lambda) &= \sum_{Q} p(Q,X|\Lambda)\\
+    &= \sum_{q_T=1}^N\cdots\sum_{q_1=1}^N p(Q,X|\Lambda)
+  \end{align*}
+
+  On the face of it, this calculation seems to have complexity
+  ${\mathcal O}\left\{N^T\right\}$.  So for a very small 100-frame
+  utterance, with only 10 states, we have a complexity of ${\mathcal
+    O}\left\{10^{100}\right\}=$one google.
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Forward Algorithm}
+
+  The solution is to use a kind of dynamic programming algorithm,
+  called ``the forward algorithm.''  The forward probability is
+  defined as follows:
+  \[
+  \alpha_t(i) \equiv p(\vec{x}_1,\ldots,\vec{x}_t,q_t=i|\Lambda)
+  \]
+  Obviously, if we can find $\alpha_t(i)$ for all $i$ and all $t$, we
+  will have solved the recognition problem, because
+  \begin{align*}
+    p(X|\Lambda) &= p(\vec{x}_1,\ldots,\vec{x}_T|\Lambda)\\
+    &= \sum_{i=1}^N p(\vec{x}_1,\ldots,\vec{x}_T,q_T=i|\Lambda)\\
+    &= \sum_{i=1}^N \alpha_T(i)
+  \end{align*}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{The Forward Algorithm}
+
+  So, working with the definition $\alpha_t(i) \equiv
+  p(\vec{x}_1,\ldots,\vec{x}_t,q_t=i|\Lambda)$, let's see how we can
+  actually calculate $\alpha_t(i)$.
+  \begin{enumerate}
+  \item {\bf Initialize:}
+    \begin{align*}
+      \alpha_1(i) &= p(q_1=i,\vec{x}_1|\Lambda)\\
+      &= p(q_1=i|\Lambda)p(\vec{x}_1|q_1=i,\Lambda)\\
+      &= \pi_i b_i(\vec{x}_1)
+    \end{align*}
+  \end{enumerate}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{The Forward Algorithm}
+
+  Definition: $\alpha_t(i) \equiv p(\vec{x}_1,\ldots,\vec{x}_t,q_t=i|\Lambda)$.
+  \begin{enumerate}
+  \item {\bf Initialize:}
+    \[
+    \alpha_1(i) = \pi_i b_i(\vec{x}_1),~~~1\le i\le N
+    \]
+  \item {\bf Iterate:}
+    \begin{align*}
+      \alpha_{t}(j) &= p(\vec{x}_1,\ldots,\vec{x}_t,q_t=j|\Lambda)\\
+      &= \sum_{i=1}^N p(\vec{x}_1,\ldots,\vec{x}_{t-1},q_{t-1}=i)p(q_t=j|q_{t-1}=i)p(\vec{x}_t|q_t=j)\\
+      &= \sum_{i=1}^N \alpha_{t-1}(i) a_{ij}b_j(\vec{x}_t)
+    \end{align*}
+  \end{enumerate}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{The Forward Algorithm}
+
+  So, working with the definition $\alpha_t(i) \equiv
+  p(\vec{x}_1,\ldots,\vec{x}_t,q_t=i|\Lambda)$, let's see how we can
+  actually calculate $\alpha_t(i)$.
+  \begin{enumerate}
+  \item {\bf Initialize:}
+    \[
+    \alpha_1(i) = \pi_i b_i(\vec{x}_1),~~~1\le i\le N
+    \]
+  \item {\bf Iterate:}
+    \begin{align*}
+      \alpha_{t}(j) &= \sum_{i=1}^N \alpha_{t-1}(i) a_{ij}b_j(\vec{x}_t),~~1\le j\le N,~2\le t\le T
+    \end{align*}
+  \item {\bf Terminate:}
+    \[
+    p(X|\Lambda) = \sum_{i=1}^N \alpha_T(i)
+    \]
+  \end{enumerate}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{The Forward Algorithm: Computational Complexity}
+
+  Most of the computational complexity is in this step:
+  \begin{itemize}
+  \item {\bf Iterate:}
+    \[
+    \alpha_{t}(j) = \sum_{i=1}^N \alpha_{t-1}(i) a_{ij}b_j(\vec{x}_t),~~1\le i,j\le N,~2\le t\le T
+    \]
+  \end{itemize}
+  Its complexity is:
+  \begin{itemize}
+  \item For each of $T-1$ time steps, $2\le t\le T$,\ldots
+  \item we need to calculate $N$ different alpha-variables, $\alpha_t(j)$, for $1\le j\le N$,\ldots
+  \item each of which requires a summation with $N$ terms.
+  \end{itemize}
+  So the total complexity is ${\mathcal O}\left\{TN^2\right\}$.  For
+  example, with $N=10$ and $T=100$, the complexity is only 10,000
+  multiplies.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Segmentation]{Segmentation: the Backward Algorithm}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{The Segmentation Problem}
+
+  There are different ways to define the segmentation problem.  Let's
+  define it this way:
+  \begin{itemize}
+  \item We want to find the most likely state, $q_t=i$, at time $t$,\ldots
+  \item given knowledge of the {\em entire} sequence
+    $X=[\vec{x}_1,\ldots,\vec{x}_T]$, not just the current observation.
+    So for example, we don't want to recognize state $i$ at time $t$ if
+    the surrounding observations, $\vec{x}_{t-1}$ and $\vec{x}_{t+1}$, make it obvious that
+    this choice is impossible.  Also,\ldots
+  \item given knowledge of the HMM that produced this sequence, $\Lambda$.
+  \end{itemize}
+
+  In other words, we want to find the {\bf state posterior
+    probability}, $p(q_t=i|X,\Lambda)$.  Let's define some more
+  notation for the state posterior probability, let's call it
+  \[
+  \gamma_t(i) = p(q_t=i|X,\Lambda)
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Use Bayes' Rule}
+
+  Suppose we already knew the {\bf joint probability,}
+  $p(X,q_t=i|\Lambda)$.  Then we could find the state posterior using
+  Bayes' rule:
+  \begin{displaymath}
+    \gamma_t(i) = p(q_t=i|X,\Lambda) = \frac{p(X,q_t=i|\Lambda)}{\sum_{j=1}^N p(X,q_t=j|\Lambda)}
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Use the Forward Algorithm}
+
+  Let's expand this:
+  \[
+  p(X,q_t=i|\Lambda) = p(q_t=i,\vec{x}_1,\ldots,\vec{x}_T|\Lambda)
+  \]
+  We already know about half of that: $\alpha_t(i)=p(q_t=i,\vec{x}_1,\ldots,\vec{x}_t|\Lambda)$.
+  We're only missing this part:
+  \[
+  p(X,q_t=i|\Lambda) = \alpha_t(i)p(\vec{x}_{t+1},\ldots,\vec{x}_T|q_t=i,\Lambda)
+  \]
+  Again, let's try the trick of ``solve the problem by inventing new notation.''  Let's define
+  \[
+  \beta_t(i) \equiv p(\vec{x}_{t+1},\ldots,\vec{x}_T|q_t=i,\Lambda)
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Backward Algorithm}
+
+  Now let's use the definition
+  $\beta_t(i)\equiv p(\vec{x}_{t+1},\ldots,\vec{x}_T|q_t=i,\Lambda)$, and see how we can
+  compute that.
+  \begin{enumerate}
+  \item {\bf Initialize:}
+    \[
+    \beta_T(i) = 1,~~1\le i\le N
+    \]
+    This might not seem immediately obvious, but think about it.
+    Given that there are no more $\vec{x}$ vectors after time $T$,
+    what is the probability that there are no more $\vec{x}$ vectors
+    after time $T$?  Well, 1, obviously.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Backward Algorithm}
+
+  Now let's use the definition $\beta_t(i) \equiv
+  p(\vec{x}_{t+1},\ldots,\vec{x}_T|q_t=i,\Lambda)$, and see how we can
+  compute that.
+  \begin{enumerate}
+  \item {\bf Initialize:}
+    \[
+    \beta_T(i) = 1,~~1\le i\le N
+    \]
+  \item {\bf Iterate:}
+  \end{enumerate}
+  \begin{align*}
+    \beta_{t}(i) &= p(\vec{x}_{t+1},\ldots,\vec{x}_T|q_t=i,\Lambda)\\
+    &= \sum_{j=1}^N p(q_{t+1}=j|q_t=i)p(\vec{x}_{t+1}|q_{t+1}=j)p(\vec{x}_{t+2},\ldots,\vec{x}_T|q_{t+1}=j)\\
+    &= \sum_{j=1}^N a_{ij}b_j(\vec{x}_{t+1})\beta_{t+1}(j)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Backward Algorithm}
+
+  Now let's use the definition $\beta_t(i) \equiv
+  p(\vec{x}_{t+1},\ldots,\vec{x}_T|q_t=i,\Lambda)$, and see how we can
+  compute that.
+  \begin{enumerate}
+  \item {\bf Initialize:}
+    \[
+    \beta_T(i) = 1,~~1\le i\le N
+    \]
+  \item {\bf Iterate:}
+    \begin{align*}
+      \beta_{t}(i) &= \sum_{j=1}^N a_{ij}b_j(\vec{x}_{t+1})\beta_{t+1}(j),~~1\le i\le N,~1\le t\le T-1
+    \end{align*}
+  \item {\bf Terminate:}
+    \[
+    p(X|\Lambda) = \sum_{i=1}^N \pi_ib_i(\vec{x}_1)\beta_1(i)
+    \]
+  \end{enumerate}
+\end{frame}
+
+  
+\begin{frame}
+  \frametitle{The Backward Algorithm: Computational Complexity}
+
+  Most of the computational complexity is in this step:
+  \begin{itemize}
+  \item {\bf Iterate:}
+    \begin{align*}
+      \beta_{t}(i) 
+      &= \sum_{j=1}^N a_{ij}b_j(\vec{x}_{t+1})\beta_{t+1}(j),~~1\le i\le N,~2\le t\le T
+    \end{align*}
+  \end{itemize}
+  Its complexity is:
+  \begin{itemize}
+  \item For each of $T-1$ time steps, $1\le t\le T-1$,\ldots
+  \item we need to calculate $N$ different beta-variables, $\beta_t(i)$, for $1\le i\le N$,\ldots
+  \item each of which requires a summation with $N$ terms.
+  \end{itemize}
+  So the total complexity is ${\mathcal O}\left\{TN^2\right\}$.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Use Bayes' Rule}
+
+  The segmentation probability is then
+  \begin{align*}
+    \gamma_t(i) &= \frac{p(X,q_t=i|\Lambda)}{\sum_{k=1}^N p(X,q_t=k|\Lambda)}\\
+    &= \frac{p(\vec{x}_1,\ldots,\vec{x}_t,q_t=i|\Lambda)p(\vec{x}_{t+1},\ldots,\vec{x}_T|q_t=i,\Lambda)}{\sum_{k=1}^N p(\vec{x}_1,\ldots,\vec{x}_t,q_t=k|\Lambda)p(\vec{x}_{t+1},\ldots,\vec{x}_T|q_t=k,\Lambda)}\\
+    &= \frac{\alpha_t(i)\beta_t(i)}{\sum_{k=1}^N\alpha_t(k)\beta_t(k)}
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{What About State Sequences?}
+
+  \begin{itemize}
+  \item Notice a problem: $\gamma_t(i)$ only tells us about one frame at a time!  It doesn't tell
+    us anything about the probability of a sequence of states, covering a sequence of frames!
+  \item \ldots but we can extend the same reasoning to cover two or
+    more consecutive frames.  For example, let's define:
+    \[
+    \xi_t(i,j) = p(q_t=i,q_{t+1}=j|X,\Lambda)
+    \]
+    \item We can solve for $\xi_t(i,j)$ using the same reasoning that
+      we used for $\gamma_t(i)$!
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Segmentation: The Backward Algorithm}
+
+  In summary, we now have three new probabilities, all of which can be
+  computed in ${\mathcal O}\left\{TN^2\right\}$ time:
+  \begin{enumerate}
+  \item {\bf The Backward Probability:}
+    \[
+    \beta_t(i) = p(\vec{x}_{t+1},\ldots,\vec{x}_T|q_t=i,\Lambda)
+    \]
+  \item {\bf The State Posterior:}
+    \begin{align*}
+      \gamma_t(i) & = p(q_t=i|X,\Lambda)
+      = \frac{\alpha_t(i)\beta_t(i)}{\sum_{k=1}^N\alpha_t(k)\beta_t(k)}
+    \end{align*}
+  \item {\bf The Segment Posterior:}
+    \begin{align*}
+      \xi_t(i,j) & = p(q_t=i,q_{t+1}=j|X,\Lambda)\\
+      &= \frac{\alpha_t(i)a_{ij}b_j(\vec{x}_{t+1})\beta_t(j)}{\sum_{k=1}^N\sum_{\ell=1}^N\alpha_t(k)a_{k\ell}b_\ell(\vec{x}_{t+1})\beta_{t+1}(\ell)}
+    \end{align*}
+  \end{enumerate}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Training]{Training: the Baum-Welch Algorithm}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Maximum Likelihood Training}
+  
+  Suppose we're given several observation sequences of the form
+  $X=[\vec{x}_1,\ldots,\vec{x}_T]$.  Suppose, also, that we have some
+  initial guess about the values of the model parameters (our initial
+  guess doesn't have to be very good).  Maximum likelihood training
+  means we want to compute a new set of parameters,
+  $\Lambda'=\left\{\pi_i,a_{ij},b_j(\vec{x})\right\}$ that maximize
+  $p(X|\Lambda')$.
+  \begin{enumerate}
+  \item {\bf Initial State Probabilities:} Find values of $\pi_i'$, $1\le
+    i\le N$, that maximize $p(X|\Lambda')$.
+  \item {\bf Transition Probabilities:} Find values of $a_{ij}'$, $1\le
+    i,j\le N$, that maximize $p(X|\Lambda')$.
+  \item {\bf Observation Probabilities:} Find values of the neural
+    network parameters such that $b_j'(\vec{x})$ maximizes $p(X|\Lambda')$.
+  \end{enumerate}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{Maximum Likelihood Training with Known State Sequence}
+
+  {\bf Impossible assumption}: Suppose that we actually know the state sequences,
+  $Q=[q_1,\ldots,q_T]$, matching with each observation sequence
+  $X=[\vec{x}_1,\ldots,\vec{x}_T]$.  Then the maximum likelihood
+  parameters would be given by
+  \begin{enumerate}
+  \item {\bf Initial State Probabilities:}
+    \[
+    \pi_i'=\frac{\mbox{\# state sequences that start with}~q_1=i}{\mbox{\# state sequences in training data}}
+    \]
+  \item {\bf Transition Probabilities:}
+    \[
+    a_{ij}'=\frac{\mbox{\# frames in which}~q_{t-1}=i,q_t=j}{\mbox{\# frames in which}~q_{t-1}=i}
+    \]
+  \item {\bf Observation Probabilities:} Re-estimate the neural
+    network in order to maximize the log likelihood of the actual
+    state sequence, i.e., minimize the following loss function:
+    \[
+    {\mathcal L}= -\sum_{t=1}^T \ln b_{q_t}(\vec{x}_t)
+    \]
+  \end{enumerate}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{Expectation Maximization}
+
+  When the true state sequence is unknown, then we can't maximize the
+  likelihood $p(X|\Lambda')$ directly.  Instead, we maximize the {\em
+    expected} log likelihood, $E_Q\left[\ln p(X|\Lambda')\right]$,
+  where the expectation is over the unknown (hidden) state sequence.
+  \begin{enumerate}
+  \item {\bf Initial State Probabilities:}
+    \[
+    \pi_i'=\frac{E\left[\mbox{\# state sequences that start with}~q_1=i\right]}{\mbox{\# state sequences in training data}}
+    \]
+  \item {\bf Transition Probabilities:}
+    \[
+    \pi_i'=\frac{E\left[\mbox{\# frames in which}~q_{t-1}=i,q_t=j\right]}{E\left[\mbox{\# frames in which}~q_{t-1}=i\right]}
+    \]
+  \item {\bf Observation Probabilities:} 
+    \[
+    {\mathcal L}= -\sum_{t=1}^T E\left[\ln b_{q_t}(\vec{x}_t)\right]
+    \]
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Calculating the Expectations}
+
+  Now let's talk about how to calculate those expectations.
+  \begin{itemize}
+  \item In the $t^{\textrm{th}}$ frame, the event $q_{t}=i,q_{t+1}=j$ either
+    happens, or it doesn't happen.
+  \item So the following  expectation is actually just a  probability:
+    \begin{align*}
+      & E\left[\mbox{\# times during the $t^{\textrm{th}}$ frame, in which}~q_{t}=i,q_{t+1}=j\right] \\
+      & = p(q_{t}=i,q_{t+1}=j)
+    \end{align*}
+  \item Now we need to ask, in order to compute $p(q_{t}=i,q_{t+1}=j)$,
+    what other information do we get to use?  The answer is: the more
+    information you can use, the better your answer will be.  So if we
+    already have a previous estimate of $\Lambda$, and we know $X$, then let's
+    use them:
+    \begin{align*}
+      & E\left[\mbox{\# times, during just one frame, in which}~q_{t}=i,q_{t+1}=j\right] \\
+      & = p(q_{t}=i,q_{t+1}=j|X,\Lambda)\\
+      &= \xi_t(i,j)
+    \end{align*}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Baum-Welch Algorithm}
+
+  \begin{enumerate}
+  \item {\bf Initial State Probabilities:}
+    \begin{align*}
+      \pi_i'&=\frac{E\left[\mbox{\# state sequences that start with}~q_1=i\right]}{\mbox{\# state sequences in training data}}\\
+      &=\frac{\sum_{sequences} \gamma_1(i)}{\mbox{\# sequences}}
+    \end{align*}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Baum-Welch Algorithm}
+
+  \begin{enumerate}
+  \item {\bf Initial State Probabilities:}
+    \begin{align*}
+      \pi_i'  &=\frac{\sum_{sequences} \gamma_1(i)}{\mbox{\# sequences}}
+    \end{align*}
+  \item {\bf Transition Probabilities:}
+    \begin{align*}
+      \pi_i'&=\frac{E\left[\mbox{\# frames in which}~q_{t-1}=i,q_t=j\right]}{E\left[\mbox{\# frames in which}~q_{t-1}=i\right]}\\
+      &=\frac{\sum_{t=1}^{T-1} \xi_t(i,j)}{\sum_{i=1}^N\sum_{t=1}^{T-1}\xi_t(i,j)}
+    \end{align*}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Baum-Welch Algorithm}
+
+  \begin{enumerate}
+  \item {\bf Initial State Probabilities:}
+    \begin{align*}
+      \pi_i' &=\frac{\sum_{sequences} \gamma_1(i)}{\mbox{\# sequences}}
+    \end{align*}
+  \item {\bf Transition Probabilities:}
+    \begin{align*}
+      \pi_i' &=\frac{\sum_{t=1}^{T-1} \xi_t(i,j)}{\sum_{i=1}^N\sum_{t=1}^{T-1}\xi_t(i,j)}
+    \end{align*}
+  \item {\bf Observation Probabilities:} 
+    \begin{align*}
+      {\mathcal L} &= -\sum_{t=1}^T E\left[\ln b_{q_t}(\vec{x}_t)\right]\\
+      &= -\sum_{t=1}^T\sum_{i=1}^N  \gamma_t(i)\ln b_{i}(\vec{x}_t)
+    \end{align*}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Baum-Welch Algorithm}
+
+  \begin{enumerate}
+  \item {\bf Initial State Probabilities:}
+    \begin{align*}
+      \pi_i' &=\frac{\sum_{sequences} \gamma_1(i)}{\mbox{\# sequences}}
+    \end{align*}
+  \item {\bf Transition Probabilities:}
+    \begin{align*}
+      \pi_i' &=\frac{\sum_{t=1}^{T-1} \xi_t(i,j)}{\sum_{i=1}^N\sum_{t=1}^{T-1}\xi_t(i,j)}
+    \end{align*}
+  \item {\bf Observation Probabilities:} 
+    \begin{align*}
+      {\mathcal L} &= -\sum_{t=1}^T\sum_{i=1}^N  \gamma_t(i)\ln b_{i}(\vec{x}_t)
+    \end{align*}
+  \end{enumerate}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Example]{Numerical Example}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Example: Gumball Machines}
+  \centerline{\includegraphics[height=2.5in]{Gumball_machines_Dallas_2008.jpg}}
+  \begin{tiny}
+    ``Gumball machines in a Diner at Dallas, Texas, in 2008,'' Andreas Praefcke, public domain image.
+  \end{tiny}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Gumball Machines}
+  \begin{itemize}
+  \item {\bf Observation Probabilities:} Suppose we have two gumball
+    machines, $q=1$ and $q=2$.  Machine \#1 contains 60\% Grapefruit
+    gumballs, 40\% Apple gumballs.  Machine \#2 contains 90\%
+    Apple, 10\% Grapefruit.
+    \[
+    b_1(x)=\begin{cases} 0.4 & x=A\\0.6 & x=G\end{cases},~~~
+    b_2(x)=\begin{cases} 0.9 & x=A\\0.1 & x=G\end{cases}
+    \]
+  \item {\bf Initial State Probabilities:} My friend George flips a
+    coin to decide which machine to use first.
+    \[
+    \pi_i = 0.5,~~~i\in\left\{1,2\right\}
+    \]
+  \item {\bf Transition Probabilities:} After he's used a machine,
+    George flips two coins, and he only changes machines if both coins
+    come up heads.
+    \[
+    a_{ij}=\begin{cases} 0.75 & i=j\\0.25 & i\ne j\end{cases}
+    \]
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{A Segmentation Problem}
+
+  \begin{itemize}
+  \item George bought three gumballs, using three quarters.  The three
+    gumballs are $(x_1=A,x_2=G,x_3=A)$.
+  \item Unfortunately, George is a bit of a goofball.  The second of
+    the three ``quarters'' was actually my 1867 silver ``Seated
+    Liberty'' dollar, worth \$4467.
+  \item Which of the two machines do I need to dismantle in order to
+    get my coin back?
+  \end{itemize}
+  \centerline{\includegraphics[height=1in]{seatedlibertydollar.jpg}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Forward Algorithm: $t=1$}
+
+  Remember, the observation sequence is $X=(A,G,A)$.
+  \begin{align*}
+  \alpha_1(i) &= \pi_i b_1(i) \\
+  &= \begin{cases} (0.5)(0.4)=0.2  & i=1\\(0.5)(0.9)=0.45 & i=2\end{cases}
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Forward Algorithm: $t=2$}
+
+  Remember, the observation sequence is $X=(A,G,A)$.
+  \begin{align*}
+  \alpha_2(j) &= \sum_{i=1}^2 \alpha_1(i)a_{ij}b_j(x_2)\\
+  &= \begin{cases}
+    \alpha_1(1)a_{11}b_1(x_2)+\alpha_1(2)a_{21}b_1(x_2) & j=1\\
+    \alpha_1(1)a_{12}b_2(x_2)+\alpha_1(2)a_{22}b_2(x_2) & j=2
+  \end{cases}\\
+  &= \begin{cases}
+    (0.2)(0.75)(0.6)+(0.45)(0.25)(0.6)=0.04125  & j=1\\
+    (0.2)(0.25)(0.1)+(0.45)(0.75)(0.1)=0.03875 &  j=2
+  \end{cases}
+  \end{align*}
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Backward Algorithm: $t=3$}
+
+  The backward algorithm always starts out with $\beta_T(i)=1$! 
+  \begin{align*}
+  \beta_3(i) &= 1,~~~i\in\left\{1,2\right\}
+  \end{align*}
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Backward Algorithm: $t=2$}
+
+  Remember, the observation sequence is $X=(A,G,A)$.
+  \begin{align*}
+  \beta_2(i) &= \sum_{j=1}^2 a_{ij}b_j(x_3)\beta_3(j)\\
+  &= \begin{cases}
+    a_{11}b_1(x_3)+a_{21}b_1(x_3) & j=1\\
+    a_{12}b_2(x_3)+a_{22}b_2(x_3) & j=2
+  \end{cases}\\
+  &= \begin{cases}
+    (0.75)(0.4)+(0.25)(0.4)=0.4 & j=1\\
+    (0.25)(0.9)+(0.75)(0.9)=0.9 & j=2
+  \end{cases}
+  \end{align*}  
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Solution to the Puzzle}
+
+  Given the observation sequence is $X=(A,G,A)$, 
+  the posterior state probability is
+  \[
+  \gamma_2(i)=\frac{\alpha_2(i)\beta_2(i)}{\sum_{k=1}^2\alpha_2(k)\beta_2(k)}
+  = \begin{cases}
+    \frac{(0.04125)(0.4)}{(0.04125)(0.4)+(0.03875)(0.9)} = 0.32 & i=1\\
+    \frac{(0.03875)(0.9)}{(0.04125)(0.4)+(0.03875)(0.9)} = 0.68 & i=2
+  \end{cases}
+  \]
+  So I shoud dismantle gumball machine \#2, hoping to find my rare
+  1867 silver dollar.  Good luck!
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Summary]{Summary}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{The Forward Algorithm}
+
+  Definition: $\alpha_t(i) \equiv p(\vec{x}_1,\ldots,\vec{x}_t,q_t=i|\Lambda)$.  Computation:
+  \begin{enumerate}
+  \item {\bf Initialize:}
+    \[
+    \alpha_1(i) = \pi_i b_i(\vec{x}_1),~~~1\le i\le N
+    \]
+  \item {\bf Iterate:}
+    \begin{align*}
+      \alpha_{t}(j) &= \sum_{i=1}^N \alpha_{t-1}(i) a_{ij}b_j(\vec{x}_t),~~1\le j\le N,~2\le t\le T
+    \end{align*}
+  \item {\bf Terminate:}
+    \[
+    p(X|\Lambda) = \sum_{i=1}^N \alpha_T(i)
+    \]
+  \end{enumerate}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{The Backward Algorithm}
+
+  Definition: $\beta_t(i) \equiv p(\vec{x}_{t+1},\ldots,\vec{x}_T|q_t=i,\Lambda)$.  Computation:
+  \begin{enumerate}
+  \item {\bf Initialize:}
+    \[
+    \beta_T(i) = 1,~~~1\le i\le N
+    \]
+  \item {\bf Iterate:}
+    \begin{align*}
+      \beta_{t}(i) &= \sum_{j=1}^N a_{ij}b_j(\vec{x}_{t+1})\beta_{t+1}(j),~~1\le i\le N,~1\le t\le T-1
+    \end{align*}
+  \item {\bf Terminate:}
+    \[
+    p(X|\Lambda) = \sum_{i=1}^N \pi_ib_i(\vec{x}_1)\beta_1(i)
+    \]
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Baum-Welch Algorithm}
+
+  \begin{enumerate}
+  \item {\bf Initial State Probabilities:}
+    \begin{align*}
+      \pi_i' &=\frac{\sum_{sequences} \gamma_1(i)}{\mbox{\# sequences}}
+    \end{align*}
+  \item {\bf Transition Probabilities:}
+    \begin{align*}
+      \pi_i' &=\frac{\sum_{t=1}^{T-1} \xi_t(i,j)}{\sum_{i=1}^N\sum_{t=1}^{T-1}\xi_t(i,j)}
+    \end{align*}
+  \item {\bf Observation Probabilities:} 
+    \begin{align*}
+      {\mathcal L} &= -\sum_{t=1}^T\sum_{i=1}^N  \gamma_t(i)\ln b_{i}(\vec{x}_t)
+    \end{align*}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Hidden Markov Model}
+
+  \begin{center}
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick,
+        state/.style={circle,thick,draw=blue,text=black,text centered,text width=0.25cm},
+        obs/.style={rectangle,thick,draw=blue,text=black,fill=orange!35!white,text centered,text width=0.25cm}
+      ]
+      \node[state] (q1) at (0,0) {1};
+      \node[state] (q2) at (2.5,0) {2};
+      \node[state] (q3) at (5,0) {3};
+      \node[obs] (x1) at (0,-2) {$\vec{x}$};
+      \node[obs] (x2) at (2.5,-2) {$\vec{x}$};
+      \node[obs] (x3) at (5,-2) {$\vec{x}$};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q1) edge [out=120,in=60,looseness=4] node {$a_{11}$} (q1)
+      edge [out=30,in=150] node {$a_{12}$} (q2)
+      edge [out=45,in=135] node {$a_{13}$} (q3)
+      edge [out=-90,in=90] node {$b_1(\vec{x})$} (x1)
+      (q2) edge [out=120,in=60,looseness=4] node {$a_{22}$} (q2)
+      edge [out=180,in=0] node {$a_{21}$} (q1)
+      edge [out=30,in=150] node {$a_{23}$} (q3)
+      edge [out=-90,in=90] node {$b_2(\vec{x})$} (x2)
+      (q3) edge [out=120,in=60,looseness=4] node {$a_{33}$} (q3)
+      edge [out=180,in=0] node {$a_{32}$} (q2)
+      edge [out=-160,in=-20] node {$a_{31}$} (q1)
+      edge [out=-90,in=90] node {$b_3(\vec{x})$} (x3);
+    \end{tikzpicture}
+  \end{center}
+  \begin{enumerate}
+  \item Start in state $q_t=i$ with pmf $\pi_i$.
+  \item Generate an observation, $\vec{x}$, with pdf $b_i(\vec{x})$.
+  \item Transition to a new state, $q_{t+1}=j$, according to pmf $a_{ij}$.
+  \item Repeat.
+  \end{enumerate}
+\end{frame}
+
+\end{document}
+
