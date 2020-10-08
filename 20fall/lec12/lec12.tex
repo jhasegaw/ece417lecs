@@ -504,7 +504,7 @@
   \item {\bf The Segment Posterior:}
     \begin{align*}
       \xi_t(i,j) & = p(q_t=i,q_{t+1}=j|X,\Lambda)\\
-      &= \frac{\alpha_t(i)a_{ij}b_j(\vec{x}_{t+1})\beta_t(j)}{\sum_{k=1}^N\sum_{\ell=1}^N\alpha_t(k)a_{k\ell}b_\ell(\vec{x}_{t+1})\beta_{t+1}(\ell)}
+      &= \frac{\alpha_t(i)a_{ij}b_j(\vec{x}_{t+1})\beta_{t+1}(j)}{\sum_{k=1}^N\sum_{\ell=1}^N\alpha_t(k)a_{k\ell}b_\ell(\vec{x}_{t+1})\beta_{t+1}(\ell)}
     \end{align*}
   \end{enumerate}
 \end{frame}
@@ -521,7 +521,7 @@
   initial guess about the values of the model parameters (our initial
   guess doesn't have to be very good).  Maximum likelihood training
   means we want to compute a new set of parameters,
-  $\Lambda'=\left\{\pi_i,a_{ij},b_j(\vec{x})\right\}$ that maximize
+  $\Lambda'=\left\{\pi_i',a_{ij}',b_j'(\vec{x})\right\}$ that maximize
   $p(X|\Lambda')$.
   \begin{enumerate}
   \item {\bf Initial State Probabilities:} Find values of $\pi_i'$, $1\le
@@ -536,10 +536,11 @@
 \begin{frame}
   \frametitle{Maximum Likelihood Training with Known State Sequence}
 
-  {\bf Impossible assumption}: Suppose that we actually know the state sequences,
-  $Q=[q_1,\ldots,q_T]$, matching with each observation sequence
-  $X=[\vec{x}_1,\ldots,\vec{x}_T]$.  Then the maximum likelihood
-  parameters would be given by
+  {\bf Impossible assumption}: Suppose that we actually know the state
+  sequences, $Q=[q_1,\ldots,q_T]$, matching with each observation
+  sequence $X=[\vec{x}_1,\ldots,\vec{x}_T]$.  Then the maximum
+  likelihood parameters (the $\Lambda'$ that maximizes
+  $p(X,Q|\Lambda')$ would be given by
   \begin{enumerate}
   \item {\bf Initial State Probabilities:}
     \[
@@ -562,8 +563,8 @@
   \frametitle{Expectation Maximization}
 
   When the true state sequence is unknown, then we can't maximize the
-  likelihood $p(X|\Lambda')$ directly.  Instead, we maximize the {\em
-    expected} log likelihood, $E_Q\left[\ln p(X|\Lambda')\right]$,
+  likelihood $p(X,Q|\Lambda')$ directly.  Instead, we maximize the {\em
+    expected} log likelihood, $E_Q\left[\ln p(X,Q|\Lambda')\right]$,
   where the expectation is over the unknown (hidden) state sequence.
   \begin{enumerate}
   \item {\bf Initial State Probabilities:}
@@ -628,8 +629,8 @@
     \end{align*}
   \item {\bf Transition Probabilities:}
     \begin{align*}
-      \pi_i'&=\frac{E\left[\mbox{\# frames in which}~q_{t-1}=i,q_t=j\right]}{E\left[\mbox{\# frames in which}~q_{t-1}=i\right]}\\
-      &=\frac{\sum_{t=1}^{T-1} \xi_t(i,j)}{\sum_{i=1}^N\sum_{t=1}^{T-1}\xi_t(i,j)}
+      a_{ij}'&=\frac{E\left[\mbox{\# frames in which}~q_{t-1}=i,q_t=j\right]}{E\left[\mbox{\# frames in which}~q_{t-1}=i\right]}\\
+      &=\frac{\sum_{t=1}^{T-1} \xi_t(i,j)}{\sum_{j=1}^N\sum_{t=1}^{T-1}\xi_t(i,j)}
     \end{align*}
   \end{enumerate}
 \end{frame}
@@ -644,7 +645,7 @@
     \end{align*}
   \item {\bf Transition Probabilities:}
     \begin{align*}
-      \pi_i' &=\frac{\sum_{t=1}^{T-1} \xi_t(i,j)}{\sum_{i=1}^N\sum_{t=1}^{T-1}\xi_t(i,j)}
+      a_{ij}' &=\frac{\sum_{t=1}^{T-1} \xi_t(i,j)}{\sum_{j=1}^N\sum_{t=1}^{T-1}\xi_t(i,j)}
     \end{align*}
   \item {\bf Observation Probabilities:} 
     \begin{align*}
@@ -664,7 +665,7 @@
     \end{align*}
   \item {\bf Transition Probabilities:}
     \begin{align*}
-      \pi_i' &=\frac{\sum_{t=1}^{T-1} \xi_t(i,j)}{\sum_{i=1}^N\sum_{t=1}^{T-1}\xi_t(i,j)}
+      a_{ij}' &=\frac{\sum_{t=1}^{T-1} \xi_t(i,j)}{\sum_{j=1}^N\sum_{t=1}^{T-1}\xi_t(i,j)}
     \end{align*}
   \item {\bf Observation Probabilities:} 
     \begin{align*}
@@ -723,6 +724,7 @@
     get my coin back?
   \end{itemize}
   \centerline{\includegraphics[height=1in]{seatedlibertydollar.jpg}}
+  \begin{tiny}Image used with permission of the National Numismatic Collection, National Museum of American History.\end{tiny}
 \end{frame}
 
 \begin{frame}
@@ -770,12 +772,12 @@
   \begin{align*}
   \beta_2(i) &= \sum_{j=1}^2 a_{ij}b_j(x_3)\beta_3(j)\\
   &= \begin{cases}
-    a_{11}b_1(x_3)+a_{21}b_1(x_3) & j=1\\
-    a_{12}b_2(x_3)+a_{22}b_2(x_3) & j=2
+    a_{11}b_1(x_3)+a_{12}b_2(x_3) & i=1\\
+    a_{21}b_1(x_3)+a_{22}b_2(x_3) & i=2
   \end{cases}\\
   &= \begin{cases}
-    (0.75)(0.4)+(0.25)(0.4)=0.4 & j=1\\
-    (0.25)(0.9)+(0.75)(0.9)=0.9 & j=2
+    (0.75)(0.4)+(0.25)(0.9)=0.525 & j=1\\
+    (0.25)(0.4)+(0.75)(0.9)=0.775 & j=2
   \end{cases}
   \end{align*}  
 \end{frame}
@@ -788,8 +790,10 @@
   \[
   \gamma_2(i)=\frac{\alpha_2(i)\beta_2(i)}{\sum_{k=1}^2\alpha_2(k)\beta_2(k)}
   = \begin{cases}
-    \frac{(0.04125)(0.4)}{(0.04125)(0.4)+(0.03875)(0.9)} = 0.32 & i=1\\
-    \frac{(0.03875)(0.9)}{(0.04125)(0.4)+(0.03875)(0.9)} = 0.68 & i=2
+    \frac{(0.04125)(0.525)}{(0.04125)(0.525)+(0.03875)(0.775)}
+    =\frac{0.02165625}{0.0516875} = 0.42 & i=1\\
+    \frac{(0.03875)(0.775)}{(0.04125)(0.525)+(0.03875)(0.775)} =
+    =\frac{0.03003125}{0.0516875}= 0.58 & i=2
   \end{cases}
   \]
   So I shoud dismantle gumball machine \#2, hoping to find my rare
@@ -850,7 +854,7 @@
     \end{align*}
   \item {\bf Transition Probabilities:}
     \begin{align*}
-      \pi_i' &=\frac{\sum_{t=1}^{T-1} \xi_t(i,j)}{\sum_{i=1}^N\sum_{t=1}^{T-1}\xi_t(i,j)}
+      a_{ij}' &=\frac{\sum_{t=1}^{T-1} \xi_t(i,j)}{\sum_{j=1}^N\sum_{t=1}^{T-1}\xi_t(i,j)}
     \end{align*}
   \item {\bf Observation Probabilities:} 
     \begin{align*}
