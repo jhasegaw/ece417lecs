@@ -787,15 +787,15 @@
 
   Given the observation sequence is $X=(A,G,A)$, 
   the posterior state probability is
-  \[
-  \gamma_2(i)=\frac{\alpha_2(i)\beta_2(i)}{\sum_{k=1}^2\alpha_2(k)\beta_2(k)}
-  = \begin{cases}
-    \frac{(0.04125)(0.525)}{(0.04125)(0.525)+(0.03875)(0.775)}
-    =\frac{0.02165625}{0.0516875} = 0.42 & i=1\\
-    \frac{(0.03875)(0.775)}{(0.04125)(0.525)+(0.03875)(0.775)} =
-    =\frac{0.03003125}{0.0516875}= 0.58 & i=2
-  \end{cases}
-  \]
+  \begin{align*}
+    \gamma_2(i)&=\frac{\alpha_2(i)\beta_2(i)}{\sum_{k=1}^2\alpha_2(k)\beta_2(k)}\\
+    &= \begin{cases}
+      \frac{(0.04125)(0.525)}{(0.04125)(0.525)+(0.03875)(0.775)}
+      = 0.42 & i=1\\
+      \frac{(0.03875)(0.775)}{(0.04125)(0.525)+(0.03875)(0.775)}
+      = 0.58 & i=2
+    \end{cases}
+  \end{align*}
   So I shoud dismantle gumball machine \#2, hoping to find my rare
   1867 silver dollar.  Good luck!
 \end{frame}
