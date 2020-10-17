@@ -1,0 +1,199 @@
+  \begin{center}
+    \tikzstyle{post}=[->,shorten <=1pt,>=stealth',semithick,draw=blue]
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial](q1)at(0,0){1};
+      \node[state](q2)at(1.5,0){2};
+      \node[state](q3)at(3,0){3};
+      \node[state](q4)at(4.5,0){4};
+      \node[state](q5)at(6,0){5};
+      \node[final](q6)at(8,0.5){6};
+      \node[state](q7)at(8,-0.5){7};
+      \node[final](q8)at(10,0){8};
+      \node[final](q9)at(10,-1){9};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (q1)edge[out=45,in=135] node {\ipa{I}}(q2)
+      edge[out=-45,in=-135] node {\ipa{i}}(q2)
+      (q2)edge node {\ipa{l}}(q3)
+      (q3)edge[in=135,out=45] node {\ipa{I}} (q4)
+      edge[in=-135,out=-45] node {\ipa{i}} (q4)
+      (q4) edge node {\ipa{n}} (q5)
+      (q5) edge[out=45,in=180] node {\ipa{OI}} (q6)
+      edge[out=-45,in=180] node {\ipa{w}} (q7)
+      (q7) edge[out=45,in=180] node {\ipa{O}} (q8)
+      edge[out=-45,in=180] node {\ipa{e}} (q9);
+    \end{tikzpicture}
+  \end{center}
+    
+
+  \begin{frame}
+  \frametitle{The Log Semiring}
+
+  \begin{itemize}
+  \item If $p(A,B)=p(A|B)p(B)$, then $c(A,B)=c(A|B)+c(B)$.  So we can
+    say that in the log semiring, the $\otimes$ operator is $\otimes=+$.
+  \item If $p\cdot 1=p$, then $c+ (-\ln(1)) = c$.  So in this
+    semiring, $\bar{1}=0$.
+  \item We have the start of a semiring:
+    $\left\{\mathbb{P},?,+,?,0\right\}$.  The question mark denotes
+    the thing we don't know yet: what is the $\oplus$ operation in the
+    log semiring?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Oplus in the Log Semiring: the Logsumexp function}
+
+  The oplus operation in the log semiring is the {\bf neglogsumexp}
+  function:
+  \begin{displaymath}
+    a\oplus b=\neglogsumexp(a,b) = -\ln\left(e^{-a}+e^{-b}\right)
+  \end{displaymath}
+  The equation above is the shortest way to write this function, but
+  not the most numerically stable way.  If you're worried about
+  floating point underflow, it is possible to write this function in
+  a way that guarantees that it never underflows:
+  \begin{align*}
+    m &= \min(a,b)\\
+    a\oplus b &= m -\ln\left(e^{m-a}+e^{m-b}\right)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Log Semiring}
+
+  The log semiring is $\left\{\mathbb{P},\neglogsumexp,+,\infty,0\right\}$.
+  \begin{itemize}
+  \item The set of all negative log probabilities and densities is
+    $\mathbb{P}=\mathbb{R}\cup\infty$.
+  \item $\otimes=+$: $p_1=p_2\cdot p_3\Rightarrow c_1=c_2\otimes c_3$.
+  \item $\bar{1}=0$: $p_1=p_2\cdot 1\Rightarrow c_1=c_2\otimes\bar{1}$
+  \item The $\oplus$ operator is $\oplus=\neglogsumexp$:
+    $p_1+p_2=p_3 \Rightarrow c_1\oplus c_2 =c_3$.
+  \item The identity element for the $\oplus$ operator is $\infty$:
+    \begin{align*}
+      m &= \min(a,\infty)  = a\\
+      a\oplus \infty &= a -\ln\left(e^{a-a}+e^{a-\infty}\right) = a
+    \end{align*}
+  \end{itemize}
+\end{frame}
+
+\end{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Semirings]{Semirings}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Semirings}
+
+  A {\bf semiring},
+  $K=\left\{\mathbb{K},\oplus,\otimes,\bar{0},\bar{1}\right\}$, is a
+  set $\mathbb{K}$ that is closed under two associative operators
+  $\oplus$ and $\otimes$. Each of the operators has its own identity
+  element, $\bar{0}$ and $\bar{1}$ ($a\oplus\bar{0}=a$,
+  $a\otimes\bar{1}=a$), and:
+  \begin{itemize}
+  \item $\otimes$ distributes over $\oplus$,
+  \item $a\otimes\bar{0}=\bar{0}$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Natural Numbers Semirings}
+
+  For example, the natural numbers
+  $\mathbb{N}=\left\{0,1,2,\ldots\right\}$ are closed under regular
+  addition and multiplication:
+  \begin{itemize}
+  \item If $a$ and $b$ are natural numbers, then so is $a+b$,
+  \item If $a$ and $b$ are natural numbers, then so is $a\cdot b$,
+  \item If $a$ is a natural number, then $a+0=a$
+  \item If $a$ is a natural number, then $a\cdot 1=a$
+  \item If $a$ is a natural number, then $a\cdot 0=0$
+  \item If $a$, $b$, and $c$ are natural numbers, then $a\cdot (b+c) = ab+ac$
+  \end{itemize}
+  so $\left\{\mathbb{N},+,\cdot,0,1\right\}$ is a semiring.
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Probability Semiring}
+
+  Probability densities are numbers in the set $\mathbb{R}_+$ (the
+  non-negative real numbers).  This set is closed over multiplication
+  and addition, so
+  \begin{itemize}
+  \item If $a$ and $b$ are probability densities, then so is $a+b$,
+  \item If $a$ and $b$ are probability densities, then so is $a\cdot b$,
+  \item If $a$ is a probability density, then $a+0=a$
+  \item If $a$ is a probability density, then $a\cdot 1=a$
+  \item If $a$ is a probability density, then $a\cdot 0=0$
+  \item If $a$, $b$, and $c$ are probability densities, then $a\cdot (b+c) = ab+ac$
+  \end{itemize}
+  so $\left\{\mathbb{R}_+,+,\cdot,0,1\right\}$ is a semiring.
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Log Semiring}
+
+  Surprisals are numbers in the set $\bar\mathbb{R}$ (the so-called
+  ``extended reals,''
+  $\bar\mathbb{R}=\mathbb{R}\cup\left\{-\infty,+\infty\right\}$).
+  This set is closed over addition and negsumexp, so
+  \begin{itemize}
+  \item If $a$ and $b$ are surprisals, then so is $a\otimes b$,
+  \item If $a$ and $b$ are surprisals, then so is $a\oplus b$,
+  \item If $a$ is a surprisal, then $a\oplus \infty=a$
+  \item If $a$ is a surprisal, then $a+0=a$
+  \item If $a$ is a probability density, then $a\cdot 0=0$
+  \item If $a$, $b$, and $c$ are probability densities, then $a\cdot (b+c) = ab+ac$
+  \end{itemize}
+  so $\left\{\mathbb{R}_+,+,\cdot,0,1\right\}$ is a semiring.
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Probability Semiring}
+
+  Probabilities and probability densities are numbers in the set
+  $\mathbb{R}_+$ (the non-negative real numbers).  This set is closed
+  over multiplication and addition, so
+  $\left\{\mathbb{R}_+,+,\cdot,0,1\right\}$ is a semiring called the
+  ``probability semiring.''
+  \begin{itemize}
+  \item Marginalization: $p(B=b)= \sum_a p(B=b,A=a)$
+    \begin{itemize}
+    \item Identity element: $p+0=p$.
+    \end{itemize}
+  \item Multiplication of conditional probabilities: $p(A,B)=p(A)p(B|A)$
+    \begin{itemize}
+    \item Identity element: $p\cdot 1=p$
+    \item Multiplication by zero: $p\cdot 0=0$
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Log Semiring}
+
+  \begin{itemize}
+  \item In order to avoid floating-point underflow, it's often useful
+    to work with negative log-probabilities, usually called
+    ``surprisals'' or ``costs:''
+    \[
+    c(A|B) = -\ln p(A|B)
+    \]
+  \item If $p(A|B)\in\mathbb{R}_+$, then
+    $c(A|B)\in\mathbb{R}\cup\left\{\infty\right\}$.
+  \item The set $\mathbb{R}\cup\left\{-\infty,\infty\right\}$ is
+    called the ``extended real'' set, and is usually denoted
+    $\bar\mathbb{R}$.  We don't really need $-\infty$, but we really,
+    really need $+\infty$ (remember, $-\ln(0)=+\infty$), so we can say
+    that surprisals come from the set $\bar\mathbb{R}$.
+  \end{itemize}
+\end{frame}
+
+
+    \end{align*}
+    \end{align*}
