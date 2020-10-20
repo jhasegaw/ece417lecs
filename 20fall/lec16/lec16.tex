@@ -1,0 +1,765 @@
+\documentclass{beamer}
+\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate,tipa,tcolorbox}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc}
+\newcommand{\ipa}[1]{\fontfamily{cmr}\selectfont\textipa{#1}}
+\newcommand{\best}{\operatornamewithlimits{best}}
+\newcommand{\argbest}{\operatornamewithlimits{argbest}}
+\newcommand{\argmax}{\operatornamewithlimits{argmax}}
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\newcommand{\logsumexp}{\operatornamewithlimits{logsumexp}}
+\mode<presentation>{\usetheme{Frankfurt}}
+\DeclareMathOperator*{\softmax}{softmax}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 16: Weighted Finite State Transducers (WFST)}
+\author{Mark Hasegawa-Johnson\\All content~\href{https://creativecommons.org/licenses/by-sa/4.0/}{CC-SA 4.0} unless otherwise specified.}
+\date{ECE 417: Multimedia Signal Processing, Fall 2020}  
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Review]{Review: WFSA}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Weighted Finite State Acceptors}
+  \begin{center}
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,0) {0};
+      \node[state] (q1) at (2,1) {1};
+      \node[state] (q2) at (2,-1) {2};
+      \node[state] (q3) at (4,0) {3};
+      \node[state] (q4) at (6,0) {4};
+      \node[final] (q5) at (8,0) {5};
+      \node[final] (q6) at (8,-1) {6};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q0) edge [out=60,in=135] node {The/$0.3$} (q1)
+      edge [out=30,in=-135] node {A/$0.2$} (q1)
+      edge [out=-45,in=180] node {A/$0.3$} (q2)
+      edge [out=-135,in=-135] node {This/$0.2$} (q2)
+      (q1) edge [out=0,in=135] node {dog/$1$} (q3)
+      (q2) edge [out=45,in=180] node {dog/$0.3$} (q3)
+      edge [out=-45,in=-90] node {cat/$0.7$} (q3)
+      (q3) edge node {is/$1$} (q4)
+      (q4) edge [out=120,in=60,looseness=4] node {very/$0.2$} (q4)
+      edge [out=0,in=180] node {cute/$0.4$} (q5)
+      edge [out=-45,in=180] node {hungry/$0.4$} (q6);
+    \end{tikzpicture}
+  \end{center}
+  
+  \begin{itemize}
+  \item An {\bf FSA} specifies a set of strings.  A string is in the set if
+    it corresponds to a valid path from start to end, and not otherwise.
+  \item A {\bf WFSA} also specifies a probability mass function over the set.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Every Markov Model is a WFSA}
+  \begin{center}
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q1) at (0,0) {1};
+      \node[state] (q2) at (3,0) {2};
+      \node[final] (q3) at (6,0) {3};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q1) edge [out=-120,in=120,looseness=4] node {1/$a_{11}$} (q1)
+      edge [out=15,in=165] node {1/$a_{12}$} (q2)
+      edge [out=45,in=135] node {1/$a_{13}$} (q3)
+      (q2) edge [out=120,in=60,looseness=4] node {2/$a_{22}$} (q2)
+      edge [out=-165,in=-15] node {2/$a_{21}$} (q1)
+      edge [out=15,in=165] node {2/$a_{23}$} (q3)
+      (q3) edge [out=60,in=-60,looseness=4] node {3/$a_{33}$} (q3)
+      edge [out=-165,in=-15] node {3/$a_{32}$} (q2)
+      edge [out=-135,in=-45] node {3/$a_{31}$} (q1);
+    \end{tikzpicture}
+  \end{center}
+  A Markov Model (but not an HMM!) may be interpreted as a WFSA: just
+  assign a label to each edge.  The label might just be the state
+  number, or it might be something more useful.
+\end{frame}
+  
+\begin{frame}
+  \frametitle{Best-Path Algorithm for a WFSA}
+
+  Given:
+  \begin{itemize}
+  \item Input string, $S=[s_1,\ldots,s_T]$.  For example, the
+    string ``A dog is very very hungry'' has $T=5$ words.
+  \item Edges, $e$, each have predecessor state $p[e]\in Q$, next state
+    $n[e]\in Q$, weight $w[e]\in\overline{\mathbb{R}}$ and label $\ell[e]\in\Sigma$.
+  \end{itemize}
+  \begin{itemize}
+  \item {\bf Initialize:}
+    \begin{displaymath}
+      \delta_0(i) = \begin{cases}
+        \bar{1} & i=\mbox{initial state}\\
+        \bar{0} & \mbox{otherwise}
+      \end{cases}
+    \end{displaymath}
+  \item {\bf Iterate:}
+    \begin{align*}
+      \delta_t(j) &= \best_{e:n[e]=j,\ell[e]=s_t} \delta_{t-1}(p[e]) \otimes w[e]\\
+      \psi_t(j) &= \argbest_{e:n[e]=j,\ell[e]=s_t} \delta_{t-1}(p[e]) \otimes w[e]
+    \end{align*}
+  \item {\bf Backtrace:}
+    \begin{displaymath}
+      e^*_t = \psi(q^*_{t+1}),~~~~~q^*_t=p[e^*_t]
+    \end{displaymath}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Determinization}
+
+  A WFSA is said to be {\bf deterministic} if, for any given
+  (predecessor state $p[e]$, label $\ell[e]$), there is at most 
+  one such edge.  For example, this WFSA is not deterministic.
+
+  \begin{center}
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,0) {0};
+      \node[state] (q1) at (2,1) {1};
+      \node[state] (q2) at (2,-1) {2};
+      \node[state] (q3) at (4,0) {3};
+      \node[state] (q4) at (6,0) {4};
+      \node[final] (q5) at (8,0) {5};
+      \node[final] (q6) at (8,-1) {6};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q0) edge [out=60,in=135] node {The/$0.3$} (q1)
+      edge [out=30,in=-135] node {A/$0.2$} (q1)
+      edge [out=-45,in=180] node {A/$0.3$} (q2)
+      edge [out=-135,in=-135] node {This/$0.2$} (q2)
+      (q1) edge [out=0,in=135] node {dog/$1$} (q3)
+      (q2) edge [out=45,in=180] node {dog/$0.3$} (q3)
+      edge [out=-45,in=-90] node {cat/$0.7$} (q3)
+      (q3) edge node {is/$1$} (q4)
+      (q4) edge [out=120,in=60,looseness=4] node {very/$0.2$} (q4)
+      edge [out=0,in=180] node {cute/$0.4$} (q5)
+      edge [out=-45,in=180] node {hungry/$0.4$} (q6);
+    \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}
+  \frametitle{How to Determinize a WFSA}
+
+  The only general algorithm for {\bf determinizing} a WFSA is the
+  following exponential-time algorithm:
+  \begin{itemize}
+  \item For every state in $A$, for every set of edges
+    $e_1,\ldots,e_K$ that all have the same label:
+    \begin{itemize}
+    \item Create a new edge, $e$, with weight $w[e]=w[e_1]\oplus\cdots\oplus w[e_K]$.
+    \item Create a brand new successor state $n[e]$.
+    \item For every edge leaving any of the original successor states
+      $n[e_k],~1\le k\le K$, whose label is unique:
+      \begin{itemize}
+      \item Copy  it to $n[e]$, $\otimes$ its weight by $w[e_k]/w[e]$
+      \end{itemize}
+    \item For every set of edges leaving $n[e_k]$ that all have the
+      same label:
+      \begin{itemize}
+      \item Recurse!
+      \end{itemize}
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Semirings]{Semirings}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Semirings}
+
+  A {\bf semiring} is a set of numbers, over which it's possible to
+  define a operators $\otimes$ and $\oplus$,
+  and identity elements $\bar{1}$ and $\bar{0}$.
+  \begin{itemize}
+  \item The {\bf Probability Semiring} is the set of non-negative real
+    numbers $\mathbb{R}_+$, with $\otimes=\cdot$, $\oplus=+$, $\bar{1}=1$, and $\bar{0}=0$.
+  \item The {\bf Log Semiring} is the extended reals
+    $\mathbb{R}\cup\left\{\infty\right\}$, with $\otimes=+$, $\oplus
+    =-\logsumexp(-,-)$, $\bar{1}=0$, and $\bar{0}=\infty$.
+  \item The {\bf Tropical Semiring} is just the log semiring, but with
+    $\oplus=\min$.  In other words, instead of adding the
+    probabilities of two paths, we choose the best path:
+    \begin{displaymath}
+      a\oplus b = \min(a,b)
+    \end{displaymath}
+  \end{itemize}
+  Mohri et al. (2001) formalize it like this: a {\bf semiring} is
+  $K=\left\{\mathbb{K},\oplus,\otimes,\bar{0},\bar{1}\right\}$ where
+  $\mathbb{K}$ is a set of numbers.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[WFSTs]{How to Handle HMMs: The Weighted Finite State Transducer}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Weighted Finite State Transducers}
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,0) {0};
+      \node[state] (q1) at (2.5,1) {1};
+      \node[state] (q2) at (2.5,-1) {2};
+      \node[state] (q3) at (5,0) {3};
+      \node[state] (q4) at (7.5,0) {4};
+      \node[state] (q7) at (7.5,-1) {7};
+      \node[final] (q5) at (10,0) {5};
+      \node[final] (q6) at (10,-1) {6};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q0) edge [out=60,in=135] node {The:Le/$0.3$} (q1)
+      edge [out=30,in=-135] node {A:Un/$0.2$} (q1)
+      edge [out=-45,in=180] node {A:Un/$0.3$} (q2)
+      edge [out=-135,in=-135,looseness=2] node {This:Ce/$0.2$} (q2)
+      (q1) edge [out=0,in=135] node {dog:chien/$1$} (q3)
+      (q2) edge [out=45,in=180] node {dog:chien/$0.3$} (q3)
+      edge [out=-45,in=-90,looseness=2] node {cat:chat/$0.7$} (q3)
+      (q3) edge [out=0,in=180] node {is:est/$0.5$} (q4)
+      (q3) edge  [out=-45,in=135] node {is:a/$0.5$} (q7)
+      (q4) edge [out=120,in=60,looseness=9] node {very:tr{\`{e}}s/$0.2$} (q4)
+      edge[out=0,in=180] node {cute:mignon/$0.8$} (q5)
+      (q7)  edge [out=-120,in=-60,looseness=7] node {very:tr{\`{e}}s/$0.2$} (q7)
+      edge[out=0,in=180] node {hungry:faim/$0.8$} (q6);
+    \end{tikzpicture}
+  }
+  
+  A {\bf (Weighted) Finite State Transducer (WFST)} is a (W)FSA with two
+  labels on every edge:
+  \begin{itemize}
+  \item An input label, $i\in\Sigma$, and
+  \item An output label, $o\in\Omega$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{What it's for}
+  \begin{itemize}
+  \item An {\bf FST} specifies a mapping between two sets of strings.
+    \begin{itemize}
+    \item The input  set is ${\mathcal I}\subset\Sigma^*$, where $\Sigma^*$ is the set of
+      all strings containing zero or more letters from the alphabet $\Sigma$.
+    \item The output set is ${\mathcal O}\subset\Omega^*$.
+    \item For every $\vec{i}=[i_1,\ldots,i_T]\in{\mathcal I}$, the FST specifies one or more
+      possible translations $\vec{o}=[o_1,\ldots,o_T]\in{\mathcal O}$.
+    \end{itemize}
+  \item A {\bf WFST} also specifies a probability mass function over
+    the translations.  The example on the previous slide was
+    normalized to compute a joint pmf $p(\vec{i},\vec{o})$, but other
+    WFSAs might be normalized to compute a conditional pmf
+    $p(\vec{o}|\vec{i})$, or something else.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Normalizing for Conditional Probability}
+  Here is a WFST whose weights are normalized to compute $p(\vec{o}|\vec{i})$:
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,0) {0};
+      \node[state] (q1) at (2.5,1) {1};
+      \node[state] (q2) at (2,-1) {2};
+      \node[state] (q3) at (5,0) {3};
+      \node[state] (q4) at (7.5,0) {4};
+      \node[state] (q7) at (7.5,-1) {7};
+      \node[final] (q5) at (10,0) {5};
+      \node[final] (q6) at (10,-1) {6};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q0) edge [out=60,in=135] node {The:Le/$1$} (q1)
+      edge [out=30,in=-135] node {A:Un/$1$} (q1)
+      edge [out=-45,in=180] node {A:Un/$1$} (q2)
+      edge [out=-135,in=-135,looseness=2] node {This:Ce/$1$} (q2)
+      (q1) edge [out=0,in=135] node {dog:chien/$1$} (q3)
+      (q2) edge [out=45,in=180] node {dog:chien/$1$} (q3)
+      edge [out=0,in=-135] node {cat:f{\'{e}}lin/$0.1$} (q3)
+      edge [out=-45,in=-90,looseness=2] node {cat:chat/$0.9$} (q3)
+      (q3) edge [out=0,in=180] node {is:est/$0.5$} (q4)
+      (q3) edge  [out=-45,in=135] node {is:a/$0.5$} (q7)
+      (q4) edge [out=120,in=60,looseness=9] node {very:tr{\`{e}}s/$1$} (q4)
+      edge[out=0,in=180] node {cute:mignon/$1$} (q5)
+      (q7)  edge [out=-120,in=-60,looseness=7] node {very:tr{\`{e}}s/$1$} (q7)
+      edge[out=0,in=180] node {hungry:faim/$1$} (q6);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{Normalizing for Conditional Probability}
+
+  Normalizing for {\bf conditional probability} allows us to
+  separately represent the two parts of a hidden Markov model.
+  \begin{enumerate}
+  \item The transition probabilities, $a_{ij}$, are the weights on a
+    WFSA.
+  \item The observation probabilities, $b_j(\vec{x}_t)$, are the
+    weights on a WFST.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{WFSA: Symbols on the edges are called PDFIDs}
+
+  It is no longer useful to say that ``the labels on the edges are
+  the state numbers.''  Instead, let's call them {\bf pdfids}.
+
+  \begin{center}
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q1) at (0,0) {1};
+      \node[state] (q2) at (3,0) {2};
+      \node[final] (q3) at (6,0) {3};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q1) edge [out=-120,in=120,looseness=4] node {1/$a_{11}$} (q1)
+      edge [out=15,in=165] node {1/$a_{12}$} (q2)
+      edge [out=45,in=135] node {1/$a_{13}$} (q3)
+      (q2) edge [out=120,in=60,looseness=4] node {2/$a_{22}$} (q2)
+      edge [out=-165,in=-15] node {2/$a_{21}$} (q1)
+      edge [out=15,in=165] node {2/$a_{23}$} (q3)
+      (q3) edge [out=60,in=-60,looseness=4] node {3/$a_{33}$} (q3)
+      edge [out=-165,in=-15] node {3/$a_{32}$} (q2)
+      edge [out=-135,in=-45] node {3/$a_{31}$} (q1);
+    \end{tikzpicture}
+  \end{center}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{Observation Probabilities as Conditional Edge Weights}
+
+  Now we can create a new WFST whose {\bf output symbols are pdfids} $j$, whose
+  {\bf input symbols are observations}, $\vec{x}_t$, and whose {\bf weights are the
+    observation probabilities,} $b_j(\vec{x}_t)$.
+  \begin{center}
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,0) {0};
+      \node[state] (q1) at (2.5,0) {1};
+      \node[state] (q2) at (5,0) {2};
+      \node[state] (q3) at (7.5,0) {3};
+      \node[final] (q4) at (10,0) {4};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q0) edge [out=45,in=135] node {\tiny{$\vec{x}_1$:1/$b_1(\vec{x}_1)$}} (q1)
+      edge [out=0,in=180] node {\tiny{$\vec{x}_1$:2/$b_2(\vec{x}_1)$}} (q1)
+      edge [out=-45,in=-135] node {\tiny{$\vec{x}_1$:3/$b_3(\vec{x}_1)$}} (q1)
+      (q1) edge [out=45,in=135] node {\tiny{$\vec{x}_2$:1/$b_1(\vec{x}_2)$}} (q2)
+      edge [out=0,in=180] node {\tiny{$\vec{x}_2$:2/$b_2(\vec{x}_2)$}} (q2)
+      edge [out=-45,in=-135] node {\tiny{$\vec{x}_2$:3/$b_3(\vec{x}_2)$}} (q2)
+      (q2) edge [out=45,in=135] node {\tiny{$\vec{x}_3$:1/$b_1(\vec{x}_3)$}} (q3)
+      edge [out=0,in=180] node {\tiny{$\vec{x}_3$:2/$b_2(\vec{x}_3)$}} (q3)
+      edge [out=-45,in=-135] node {\tiny{$\vec{x}_3$:3/$b_3(\vec{x}_3)$}} (q3)
+      (q3) edge [out=45,in=135] node {\tiny{$\vec{x}_4$:1/$b_1(\vec{x}_4)$}} (q4)
+      edge [out=0,in=180] node {\tiny{$\vec{x}_4$:2/$b_2(\vec{x}_4)$}} (q4)
+      edge [out=-45,in=-135] node {\tiny{$\vec{x}_4$:3/$b_3(\vec{x}_4)$}} (q4);
+    \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Hooray!  We've almost re-created the HMM!}
+
+  So far we have:
+  \begin{itemize}
+  \item You can create a WFSA whose weights are the transition
+    probabilities.
+  \item You can create a WFST whose weights are the observation
+    probabilities.
+  \end{itemize}
+  Here are the problems:
+  \begin{enumerate}
+  \item How can we combine them?
+  \item Even if we could combine them, can this do anything that an HMM couldn't already do?
+  \end{enumerate}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Composition]{Composition}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Composition}
+
+  The main reason to use WFSTs is an operator called ``composition.''
+  Suppose you have
+  \begin{enumerate}
+  \item A WFST, $R$, that translates strings $a\in{\mathcal A}$ into
+    strings $b\in{\mathcal B}$ with joint probability $p(a,b)$.
+  \item Another WFST, $S$, that translates strings $b\in{\mathcal B}$
+    into strings $c\in{\mathcal C}$ with conditional probability $p(c|b)$.
+  \end{enumerate}
+  The operation $T=R\circ S$ gives you a WFST, $T$, that translates
+  strings $a\in{\mathcal A}$ into strings $c\in{\mathcal C}$ with
+  joint probability
+  \begin{displaymath}
+    p(a,c) = \sum_{b\in{\mathcal B}} p(a,b)p(c|b)
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The WFST Composition Algorithm}
+
+  \begin{enumerate}
+  \item {\bf Initialize:} The initial state of $T$ is a pair,
+    $i_T=(i_R,i_S)$, encoding the initial states of both $R$ and $S$.
+  \item {\bf Iterate:} While there is any state $q_T=(q_R,q_S)$ with
+    edges $(e_R=a:b,e_S=b:c)$ that have not yet been copied to $e_T$,
+    \begin{enumerate}
+    \item Create a new edge $e_T$ with next state $n[e_T]=(n[e_R],n[e_S])$
+      and labels $i[e_T]:o[e_T]=i[e_R]:o[e_S] =a:c$.
+    \item If an edge with the same $n[e_T]$, $i[e_T]$, and $o[e_T]$ already exists, then update
+      its weight:
+      \[
+      w[e_T] = w[e_T]\oplus (w[e_R]\otimes w[e_S])
+      \]
+    \item If not, create a new edge with
+      \[
+      w[e_T] = w[e_R]\otimes w[e_S]
+      \]
+    \end{enumerate}
+  \item {\bf Terminate:} A state $q_T=(q_R,q_S)$ is a final state
+    if both $q_R$ and $q_S$ are final states.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Composition Example: HMM}
+  \begin{tcolorbox}
+  \begin{center}
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[scale=0.9,->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,0) {0};
+      \node[state] (q1) at (2.5,0) {1};
+      \node[state] (q2) at (5,0) {2};
+      \node[state] (q3) at (7.5,0) {3};
+      \node[final] (q4) at (10,0) {4};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q0) edge [out=45,in=135] node {\tiny{$\vec{x}_1$:1/$b_1(\vec{x}_1)$}} (q1)
+      edge [out=0,in=180] node {\tiny{$\vec{x}_1$:2/$b_2(\vec{x}_1)$}} (q1)
+      edge [out=-45,in=-135] node {\tiny{$\vec{x}_1$:3/$b_3(\vec{x}_1)$}} (q1)
+      (q1) edge [out=45,in=135] node {\tiny{$\vec{x}_2$:1/$b_1(\vec{x}_2)$}} (q2)
+      edge [out=0,in=180] node {\tiny{$\vec{x}_2$:2/$b_2(\vec{x}_2)$}} (q2)
+      edge [out=-45,in=-135] node {\tiny{$\vec{x}_2$:3/$b_3(\vec{x}_2)$}} (q2)
+      (q2) edge [out=45,in=135] node {\tiny{$\vec{x}_3$:1/$b_1(\vec{x}_3)$}} (q3)
+      edge [out=0,in=180] node {\tiny{$\vec{x}_3$:2/$b_2(\vec{x}_3)$}} (q3)
+      edge [out=-45,in=-135] node {\tiny{$\vec{x}_3$:3/$b_3(\vec{x}_3)$}} (q3)
+      (q3) edge [out=45,in=135] node {\tiny{$\vec{x}_4$:1/$b_1(\vec{x}_4)$}} (q4)
+      edge [out=0,in=180] node {\tiny{$\vec{x}_4$:2/$b_2(\vec{x}_4)$}} (q4)
+      edge [out=-45,in=-135] node {\tiny{$\vec{x}_4$:3/$b_3(\vec{x}_4)$}} (q4);
+    \end{tikzpicture}
+  \end{center}
+  \end{tcolorbox}
+  \begin{center}
+    \tikzstyle{initial}=[circle,thick,draw=black,text width=0.25cm,fill=white]
+    \begin{tikzpicture}
+      \node[initial] (q1) at (0,0) {};
+    \end{tikzpicture}
+  \end{center}
+  \begin{tcolorbox}
+    \begin{center}
+      \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+      \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+      \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+      \begin{tikzpicture}[scale=0.75,->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+        \node[initial] (q1) at (0,0) {1};
+        \node[state] (q2) at (3,0) {2};
+        \node[final] (q3) at (6,0) {3};
+        \path[every node/.style={font=\sffamily\small,
+  	    fill=white,inner sep=1pt}]
+        (q1) edge [out=-120,in=120,looseness=4] node {\tiny{1/$a_{11}$}} (q1)
+        edge [out=15,in=165] node {\tiny{1/$a_{12}$}} (q2)
+        edge [out=45,in=135] node {\tiny{1/$a_{13}$}} (q3)
+        (q2) edge [out=120,in=60,looseness=4] node {\tiny{2/$a_{22}$}} (q2)
+        edge [out=-165,in=-15] node {\tiny{2/$a_{21}$}} (q1)
+        edge [out=15,in=165] node {\tiny{2/$a_{23}$}} (q3)
+        (q3) edge [out=60,in=-60,looseness=4] node {\tiny{3/$a_{33}$}} (q3)
+        edge [out=-165,in=-15] node {\tiny{3/$a_{32}$}} (q2)
+        edge [out=-135,in=-45] node {\tiny{3/$a_{31}$}} (q1);
+      \end{tikzpicture}
+    \end{center}
+  \end{tcolorbox}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Composition Example: HMM}
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.45cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.45cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.45cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,2) {0,1};
+      \node[state] (q11) at (3.5,2) {1,1};
+      \node[state] (q12) at (3.5,0) {1,2};
+      \node[state] (q13) at (3.5,-2) {1,3};
+      \node[state] (q21) at (5,2) {2,1};
+      \node[state] (q22) at (5,0) {2,2};
+      \node[state] (q23) at (5,-2) {2,3};
+      \node[state] (q31) at (6.5,2) {3,1};
+      \node[state] (q32) at (6.5,0) {3,2};
+      \node[state] (q33) at (6.5,-2) {3,3};
+      \node[final] (q4) at (10,-2) {4,3};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (q0) edge [out=0,in=180] node {{$\vec{x}_1$:1/$a_{11}b_1(\vec{x}_1)$}} (q11)
+      edge [out=-45,in=180] node {{$\vec{x}_1$:1/$a_{12}b_2(\vec{x}_1)$}} (q12)
+      edge [out=-90,in=180] node {{$\vec{x}_1$:1/$a_{13}b_3(\vec{x}_1)$}} (q13)
+      (q11) edge (q21) edge (q22) edge (q23)
+      (q12) edge (q21) edge (q22) edge (q23)
+      (q13) edge (q21) edge (q22) edge (q23)
+      (q21) edge (q31) edge (q32) edge (q33)
+      (q22) edge (q31) edge (q32) edge (q33)
+      (q23) edge (q31) edge (q32) edge (q33)
+      (q31) edge [out=0,in=90] node {{$\vec{x}_4$:1/$a_{13}b_1(\vec{x}_4)$}} (q4)
+      (q32) edge [out=0,in=135] node {{$\vec{x}_4$:2/$a_{23}b_2(\vec{x}_4)$}} (q4)
+      (q33) edge [out=0,in=180] node {{$\vec{x}_4$:3/$a_{33}b_3(\vec{x}_4)$}} (q4);
+    \end{tikzpicture}
+    }
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Epsilon]{Doing Useful Stuff: The Epsilon Transition}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Doing Useful Stuff: The Epsilon Transition}
+  \begin{itemize}
+  \item There's only one more thing you need to do useful stuff: nothing.
+  \item To be more precise: we can use the label $\epsilon$
+    (pronounced ``epsilon'') to mean ``nothing at all.''
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Epsilon Transitions in the Pronlex}
+
+  \begin{itemize}
+  \item A ``pronlex'' (pronunciation lexicon) is a WFST that maps from
+    phoneme strings to words.
+  \item A ``phoneme string'' is a sequence of many labels.  A word is just one label.
+    The extra labels in the output side of the WFST all use $\epsilon$, to mean that
+    they don't generate any extra output string.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example Pronlex}
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,0) {};
+      \node[state] (q12) at (2.5,1) {};
+      \node[state] (q13) at (2.5,2) {};
+      \node[state] (q14) at (2.5,3) {};
+      \node[state] (q22) at (5,1) {};
+      \node[state] (q23) at (5,2) {};
+      \node[state] (q25) at (5,4) {};
+      \node[state] (q31) at (7.5,0) {};
+      \node[state] (q32) at (7.5,1) {};
+      \node[state] (q33) at (7.5,2) {};
+      \node[state] (q34) at (7.5,3) {};
+      \node[state] (q35) at (7.5,4) {};
+      \node[final] (q4) at (10,0) {};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (q0) edge [out=0,in=180] node {\ipa{[@]}:A} (q31)
+      (q0) edge [out=30,in=180] node {\ipa{[k]}:$\epsilon$} (q12)
+      (q0) edge [out=60,in=180] node {\ipa{[d]}:$\epsilon$} (q13)
+      (q0) edge [out=90,in=180] node {\ipa{[D]}:$\epsilon$} (q14)
+      (q12) edge [out=0,in=180] node {\ipa{[\ae]}:$\epsilon$} (q22)
+      (q13) edge [out=0,in=180] node {\ipa{[O]}:$\epsilon$} (q23)
+      (q14) edge [out=0,in=180] node {\ipa{[@]}:The} (q34)
+      (q14) edge [out=45,in=180] node {\ipa{[I]}:$\epsilon$} (q25)
+      (q22) edge [out=0,in=180] node {\ipa{[t]}:cat} (q32)
+      (q23) edge [out=0,in=180] node {\ipa{[g]}:dog} (q33)
+      (q25) edge [out=0,in=180] node {\ipa{[s]}:This} (q35)
+      (q31) edge [out=0,in=180] node {$\epsilon$:$\epsilon$} (q4)
+      (q32) edge [out=0,in=160] node {$\epsilon$:$\epsilon$} (q4)
+      (q33) edge [out=0,in=140] node {$\epsilon$:$\epsilon$} (q4)
+      (q34) edge [out=0,in=120] node {$\epsilon$:$\epsilon$} (q4)
+      (q35) edge [out=0,in=100] node {$\epsilon$:$\epsilon$} (q4)
+      (q4) edge [out=-150,in=-30] node {$\epsilon$:$\epsilon$} (q0);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Example: Speech-to-Text Translation}
+
+  \begin{itemize}
+  \item For example, suppose you have some English speech.  You'd like
+    to convert it to French text.
+  \item Suppose you have an English pronlex, $L$, that maps English phonemes to words.
+  \item You also have a translator, $G$, that maps English words to French words.
+  \item Then
+    \[
+    T = L\circ G
+    \]
+    maps from English phonemes to French words.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Speech-to-Text Translation}
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \tikzstyle{dot}=[circle,thick,draw=black,fill=black]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,0) {};
+      \node[state] (q11) at (2.5,0) {};
+      \node[state] (q13) at (2.5,3) {};
+      \node[state] (q21) at (5,0) {};
+      \node[state] (q22) at (5,1.5) {};
+      \node[state] (q23) at (5,3) {};
+      \node[state] (q24) at (5,4.5) {};
+      \node[state] (q31) at (7.5,0) {};
+      \node[state] (q32) at (7.5,1.5) {};
+      \node[state] (q33) at (7.5,3) {};
+      \node[state] (q34) at (7.5,4.5) {};
+      \node[dot] (d1) at (8.5,2.25) {};
+      \node[dot] (d2) at (9,2.25) {};
+      \node[dot] (d3) at (9.5,2.25) {};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (q0) edge [out=0,in=180] node {\ipa{[D]}:$\epsilon$} (q11)
+      (q0) edge [out=60,in=180] node {\ipa{[@]}:Un/$0.5$} (q13)
+      (q11) edge [out=0,in=180] node {\ipa{[I]}:$\epsilon$} (q21)
+      (q11) edge [out=45,in=180] node {\ipa{[@]}:Le/$0.2$} (q22)
+      (q13) edge [out=0,in=180] node {\ipa{[k]}:$\epsilon$} (q23)
+      (q13) edge [out=45,in=180] node {\ipa{[d]}:$\epsilon$} (q24)
+      (q21) edge [out=0,in=180] node {\ipa{[s]}:Ce/$0.2$} (q31)
+      (q22) edge [out=45,in=180] node {\ipa{[d]}:$\epsilon$/$0.2$} (q32)
+      (q23) edge [out=0,in=180] node {\ipa{[\ae]}:$\epsilon$} (q33)
+      (q24) edge [out=45,in=180] node {\ipa{[O]}:$\epsilon$} (q34);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Speech-to-Text Translation}
+
+  Suppose you have:
+  \begin{itemize}
+  \item Observer, $B$, maps from $\vec{x}_t$ to $j$, with weights $b_j(\vec{x}_t)$.
+  \item HMM, $H$, maps from $i$ and $j$ to phonemes, with weights $a_{ij}$.
+  \item Pronlex, $L$, maps from phonemes to English words.
+  \item Grammar, $G$, maps from English words to French words.
+  \end{itemize}
+  Then the translation of audio frames into French words is given by
+  \[
+  B\circ H\circ L\circ G
+  \]
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Summary]{Summary}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Weighted Finite State Transducers}
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,0) {0};
+      \node[state] (q1) at (2.5,1) {1};
+      \node[state] (q2) at (2.5,-1) {2};
+      \node[state] (q3) at (5,0) {3};
+      \node[state] (q4) at (7.5,0) {4};
+      \node[state] (q7) at (7.5,-1) {7};
+      \node[final] (q5) at (10,0) {5};
+      \node[final] (q6) at (10,-1) {6};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q0) edge [out=60,in=135] node {The:Le/$0.3$} (q1)
+      edge [out=30,in=-135] node {A:Un/$0.2$} (q1)
+      edge [out=-45,in=180] node {A:Un/$0.3$} (q2)
+      edge [out=-135,in=-135,looseness=2] node {This:Ce/$0.2$} (q2)
+      (q1) edge [out=0,in=135] node {dog:chien/$1$} (q3)
+      (q2) edge [out=45,in=180] node {dog:chien/$0.3$} (q3)
+      edge [out=-45,in=-90,looseness=2] node {cat:chat/$0.7$} (q3)
+      (q3) edge [out=0,in=180] node {is:est/$0.5$} (q4)
+      (q3) edge  [out=-45,in=135] node {is:a/$0.5$} (q7)
+      (q4) edge [out=120,in=60,looseness=9] node {very:tr{\`{e}}s/$0.2$} (q4)
+      edge[out=0,in=180] node {cute:mignon/$0.8$} (q5)
+      (q7)  edge [out=-120,in=-60,looseness=7] node {very:tr{\`{e}}s/$0.2$} (q7)
+      edge[out=0,in=180] node {hungry:faim/$0.8$} (q6);
+    \end{tikzpicture}
+  }
+  
+  A {\bf (Weighted) Finite State Transducer (WFST)} is a (W)FSA with two
+  labels on every edge:
+  \begin{itemize}
+  \item An input label, $i\in\Sigma$, and
+  \item An output label, $o\in\Omega$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The WFST Composition Algorithm}
+
+  \[
+  T = R\circ S
+  \]
+  \begin{enumerate}
+  \item {\bf Initialize:} The initial state of $T$ is a pair,
+    $i_T=(i_R,i_S)$, encoding the initial states of both $R$ and $S$.
+  \item {\bf Iterate:} Each edge $e_T=(e_R,e_S)$:
+    \begin{itemize}
+    \item Starts at $p[e_T]=(p[e_R],p[e_S])$
+    \item Has the edge label $i[e_R]:o[e_S]$.
+    \item Ends at $n[e_T]=(n[e_R],n[e_S])$.
+    \item Has the weight $w[e_T]=w[e_R]\otimes w[e_S]$, possibly
+      summed ($\oplus$) over nondeterministic $(e_R,e_S)$ pairs.
+    \end{itemize}
+  \item {\bf Terminate:} A state $q_T=(q_R,q_S)$ is a final state
+    if both $q_R$ and $q_S$ are final states.
+  \end{enumerate}
+\end{frame}
+
+\end{document}
+

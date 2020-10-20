@@ -37,7 +37,7 @@
 
 \begin{frame}
   \frametitle{The Three Problems for an HMM}
-  \begin{center}
+   \begin{center}
     \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick,
         state/.style={circle,thick,draw=blue,text=black,text centered,text width=0.25cm},
         obs/.style={rectangle,thick,draw=blue,text=black,fill=orange!35!white,text centered,text width=0.25cm}
@@ -207,6 +207,15 @@
     edge given the state), but other interpretations are possible.
   \item It's also possible to put probabilities on the final states,
     as shown in this figure (but we don't do this very often).
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{What it's for}
+  \begin{itemize}
+  \item An {\bf FSA} specifies a set of strings.  A string is in the set if
+    it corresponds to a valid path from start to end, and not otherwise.
+  \item A {\bf WFSA} also specifies a probability mass function over the set.
   \end{itemize}
 \end{frame}
 
