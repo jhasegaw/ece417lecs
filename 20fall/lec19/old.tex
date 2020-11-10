@@ -1,0 +1,147 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[GRU]{Gated Recurrent Units}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Gated Recurrent Units (GRU)}
+
+  Gated recurrent units solve the vanishing gradient problem by
+  replacing the constant feedback coefficient, $u$, with a sigmoidal
+  function of the inputs, $f[n]$.  When the input causes $f[n]\approx
+  1$, then the recurrent unit remembers its own past, with no
+  forgetting (no vanishing gradient).  When the input causes
+  $f[n]\approx 0$, then the recurrent unit immediately forgets all of
+  the past.
+  \[    \hat{y}[n] = i[n]x[n]+f[n]\hat{y}[n-1]
+  \]
+  where the input and forget gates depend on $x[n]$ and $\hat{y}[n]$, as
+  \begin{align*}
+    i[n] &= \sigma\left(w_i x[n]+u_i\hat{y}[n-1]\right)\in (0,1)\\
+    f[n] &= \sigma\left(w_m x[n]+u_f \hat{y}[n-1]\right)\in (0,1)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{How does GRU work? Example}
+
+  For example, suppose that the inputs just coincidentally have values
+  that cause the following gate behavior:
+  \begin{align*}
+    i[n] &=\left\{\begin{array}{ll}
+    1 & n=n_0\\
+    0 & \mbox{otherwise}
+    \end{array}
+    \right.\\
+    f[n] &=\left\{\begin{array}{ll}
+    0 & n=n_0\\
+    1 & \mbox{otherwise}
+    \end{array}
+    \right.\\
+    \hat{y}[n] &= i[n]x[n]+f[n]\hat{y}[n-1]\\
+  \end{align*}
+  Then $\hat{y}[N]=\hat{y}[N-1]=\ldots =\hat{y}[n_0]=x[n_0]$, memorized!  And therefore
+  \[
+  \frac{d\hat{y}[N]}{dx[n]}=\left\{\begin{array}{ll}
+  1 & n=n_0\\
+  0 &\mbox{otherwise}
+  \end{array}\right.
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Training the Gates}
+  \begin{align*}
+    \hat{y}[n] &= i[n]x[n]+f[n]\hat{y}[n-1]\\
+    i[n] &= \sigma\left(w_i x[n]+u_i\hat{y}[n-1]\right)\in (0,1)\\
+    f[n] &= \sigma\left(w_m x[n]+u_f \hat{y}[n-1]\right)\in (0,1)
+  \end{align*}
+  \begin{align*}
+    \frac{\partial E}{\partial w_i}
+    &=
+    \sum_{n=0}^N 
+    \frac{dE}{d\hat{y}[n]}
+    \frac{d\hat{y}[n]}{di[n]}
+    \frac{\partial i[n]}{\partial w_i}\\
+    &=
+    \sum_{n=0}^N 
+    \delta[n]x[n]    \frac{\partial i[n]}{\partial w_i}\\
+  \end{align*}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[LSTM]{Long Short-Term Memory (LSTM)}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Characterizing Human Memory}
+  \begin{center}
+    \tikzstyle{pre}=[<-,shorten <=1pt,>=stealth',semithick,draw=blue]
+    \tikzstyle{post}=[->,shorten >=1pt,>=stealth',semithick,draw=blue]
+    \begin{tikzpicture}[
+        hoop/.style={circle,thick, draw=blue, text=black, fill=orange!35!white, text centered, text width=1.25cm},
+        open/.style={circle,thick, draw=blue, text=black, text centered, text width=1cm},
+        bend angle=60
+      ]
+      \node[hoop] (ltm) at (0,0) {LONG\\TERM};
+      \node[hoop] (stm) at (4,0) {SHORT\\TERM}
+      edge[pre,bend left] node[above=3.2cm,name=e1] {INPUT GATE} (ltm)
+      edge[post,bend right] node[below=3.2cm,name=e2] {OUTPUT GATE} (ltm);
+      \node (perception) at (8,2) {PERCEPTION} edge[post] (stm);
+      \node (action) at (8,-2) {ACTION} edge[pre] (stm);
+    \end{tikzpicture}
+  \end{center}
+  \[
+  \Pr\left\{\mbox{remember}\right\}=p_{LTM} e^{-t/T_{LTM}}+ (1-p_{LTM})e^{-t/T_{STM}}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Neural Network Model: LSTM}
+  \centerline{\includegraphics[width=2in]{../../../18fall/lectures/l27/2000px-Peephole_Long_Short-Term_Memory.png}}
+  \begin{align*}
+    i[n] &=\mbox{input gate}=\sigma(w_i x[n]+u_i c[n-1])\\
+    o[n] &=\mbox{output gate}=\sigma(w_o x[n]+u_o c[n-1])\\
+    f[n] &=\mbox{forget gate}=\sigma(w_f x[n]+u_f c[n-1])\\
+    c[n] &=\mbox{memory cell}
+  \end{align*}
+  \begin{align*}
+    \hat{y}[n] &= o[n]c[n]\\
+    c[n] &= f[n]c[n-1] + i[n]g\left(w_c x[n]+u_c c[n-1]\right)
+  \end{align*}
+\end{frame}
+    
+\begin{frame}
+  \frametitle{Back-Prop Through Time}
+  where the partial derivatives are defined by the forward equations:
+  \begin{align*}
+    c[t] &=f[t]c[t-1]+i[t]\sigma_h\left(w_cx[t]+u_ch[t-1]+b_c\right)\\
+    h[t] &=o[t]c[t]
+  \end{align*}
+  The partial derivatives are defined by the forward equations:
+  \begin{align*}
+    c[t] &=f[t]c[t-1]+i[t]\sigma_h\left(w_cx[t]+u_ch[t-1]+b_c\right)\\
+    h[t] &=o[t]c[t]
+  \end{align*}
+  so:
+  \begin{align*}
+    \frac{\partial h[t]}{\partial o[t]} &= c[t]\\
+    \frac{\partial h[t]}{\partial i[t]} &= \sigma_h\left(w_cx[t]+u_ch[t-1]+b_c\right)\\
+    \frac{\partial h[t]}{\partial f[t]} &= c[t-1]
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Back-Prop Through Time}
+  
+  BPTT through the gates is simplified in the same way as for the
+  cell, i.e., since there is no direct dependence of the error on any
+  gate, we only have to deal with the indirect dependences:
+  \begin{align*}
+    \delta_o[t] &= \delta_h[t]c[t]\\
+    \delta_i[t] &= \delta_c[t]\sigma_h\left(w_cx[t]+u_ch[t-1]+b_c\right)\\
+    \delta_f[t] &= \delta_c[t]c[t-1]
+  \end{align*}
+\end{frame}
+
