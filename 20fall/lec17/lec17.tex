@@ -1,0 +1,1400 @@
+\documentclass{beamer}
+\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate,tipa,tcolorbox}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc}
+\newcommand{\ipa}[1]{\fontfamily{cmr}\selectfont\textipa{#1}}
+\newcommand{\best}{\operatornamewithlimits{best}}
+\newcommand{\argbest}{\operatornamewithlimits{argbest}}
+\newcommand{\argmax}{\operatornamewithlimits{argmax}}
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\newcommand{\logsumexp}{\operatornamewithlimits{logsumexp}}
+\mode<presentation>{\usetheme{Frankfurt}}
+\DeclareMathOperator*{\softmax}{softmax}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 17: Practical WFSTs}
+\author{Mark Hasegawa-Johnson\\All content~\href{https://creativecommons.org/licenses/by-sa/4.0/}{CC-SA 4.0} unless otherwise specified.}
+\date{ECE 417: Multimedia Signal Processing, Fall 2020}  
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Review]{Review: WFSA}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Weighted Finite State Acceptors}
+  \begin{center}
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,0) {0};
+      \node[state] (q1) at (2,1) {1};
+      \node[state] (q2) at (2,-1) {2};
+      \node[state] (q3) at (4,0) {3};
+      \node[state] (q4) at (5,0) {4};
+      \node[final] (q5) at (8,0) {5};
+      \node[final] (q6) at (8,-1) {6};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q0) edge [out=60,in=135] node {The/$0.3$} (q1)
+      edge [out=30,in=-135] node {A/$0.2$} (q1)
+      edge [out=-45,in=180] node {A/$0.3$} (q2)
+      edge [out=-135,in=-135] node {This/$0.2$} (q2)
+      (q1) edge [out=0,in=135] node {dog/$1$} (q3)
+      (q2) edge [out=45,in=180] node {dog/$0.3$} (q3)
+      edge [out=-45,in=-90] node {cat/$0.7$} (q3)
+      (q3) edge node {is/$1$} (q4)
+      (q4) edge [out=120,in=60,looseness=4] node {very/$0.2$} (q4)
+      edge [out=0,in=180] node {cute/$0.4$} (q5)
+      edge [out=-45,in=180] node {hungry/$0.4$} (q6);
+    \end{tikzpicture}
+  \end{center}
+  
+  \begin{itemize}
+  \item An {\bf FSA} specifies a set of strings.  A string is in the set if
+    it corresponds to a valid path from start to end, and not otherwise.
+  \item A {\bf WFSA} also specifies a probability mass function over the set.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Semirings}
+
+  A {\bf semiring} is a set of numbers, over which it's possible to
+  define a operators $\otimes$ and $\oplus$,
+  and identity elements $\bar{1}$ and $\bar{0}$.
+  \begin{itemize}
+  \item The {\bf Probability Semiring} is the set of non-negative real
+    numbers $\mathbb{R}_+$, with $\otimes=\cdot$, $\oplus=+$, $\bar{1}=1$, and $\bar{0}=0$.
+  \item The {\bf Log Semiring} is the extended reals
+    $\mathbb{R}\cup\left\{\infty\right\}$, with $\otimes=+$, $\oplus
+    =-\logsumexp(-,-)$, $\bar{1}=0$, and $\bar{0}=\infty$.
+  \item The {\bf Tropical Semiring} is just the log semiring, but with
+    $\oplus=\min$.  In other words, instead of adding the
+    probabilities of two paths, we choose the best path:
+    \begin{displaymath}
+      a\oplus b = \min(a,b)
+    \end{displaymath}
+  \end{itemize}
+  Mohri et al. (2001) formalize it like this: a {\bf semiring} is
+  $K=\left\{\mathbb{K},\oplus,\otimes,\bar{0},\bar{1}\right\}$ where
+  $\mathbb{K}$ is a set of numbers.
+\end{frame}
+  
+\begin{frame}
+  \frametitle{Best-Path Algorithm for a WFSA}
+
+  \begin{itemize}
+  \item Input string, $S=[s_1,\ldots,s_K]$.  For example, the
+    string ``A dog is very very hungry'' has $K=5$ words.
+  \item Transitions, $t$, each have predecessor state $p[t]\in Q$, next state
+    $n[t]\in Q$, weight $w[t]\in\overline{\mathbb{R}}$ and label $\ell[t]\in\Sigma$.
+  \end{itemize}
+  \begin{itemize}
+  \item {\bf Initialize} with path cost either $\bar{1}$ or $\bar{0}$:
+    \begin{displaymath}
+      \delta_0(i) = \begin{cases}
+        \bar{1} & i=\mbox{initial state}\\
+        \bar{0} & \mbox{otherwise}
+      \end{cases}
+    \end{displaymath}
+  \item {\bf Iterate} by choosing best incoming transition:
+    \begin{align*}
+      \delta_k(j) &= \best_{t:n[t]=j,\ell[t]=s_k} \delta_{k-1}(p[t]) \otimes w[t]\\
+      \psi_k(j) &= \argbest_{t:n[t]=j,\ell[t]=s_k} \delta_{k-1}(p[t]) \otimes w[t]
+    \end{align*}
+  \item {\bf Backtrace} by reading best transition from the backpointer:
+    \begin{displaymath}
+      t^*_k = \psi(q^*_{k+1}),~~~~~q^*_k=p[t^*_k]
+    \end{displaymath}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Determinization}
+
+  A WFSA is said to be {\bf deterministic} if, for any given
+  (predecessor state $p[e]$, label $\ell[e]$), there is at most 
+  one such edge.  For example, this WFSA is not deterministic.
+
+  \begin{center}
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,0) {0};
+      \node[state] (q1) at (2,1) {1};
+      \node[state] (q2) at (2,-1) {2};
+      \node[state] (q3) at (4,0) {3};
+      \node[state] (q4) at (5,0) {4};
+      \node[final] (q5) at (8,0) {5};
+      \node[final] (q6) at (8,-1) {6};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q0) edge [out=60,in=135] node {The/$0.3$} (q1)
+      edge [out=30,in=-135] node {A/$0.2$} (q1)
+      edge [out=-45,in=180] node {A/$0.3$} (q2)
+      edge [out=-135,in=-135] node {This/$0.2$} (q2)
+      (q1) edge [out=0,in=135] node {dog/$1$} (q3)
+      (q2) edge [out=45,in=180] node {dog/$0.3$} (q3)
+      edge [out=-45,in=-90] node {cat/$0.7$} (q3)
+      (q3) edge node {is/$1$} (q4)
+      (q4) edge [out=120,in=60,looseness=4] node {very/$0.2$} (q4)
+      edge [out=0,in=180] node {cute/$0.4$} (q5)
+      edge [out=-45,in=180] node {hungry/$0.4$} (q6);
+    \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Weighted Finite State Transducers}
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,0) {0};
+      \node[state] (q1) at (2.5,1) {1};
+      \node[state] (q2) at (2.5,-1) {2};
+      \node[state] (q3) at (5,0) {3};
+      \node[state] (q4) at (7.5,0) {4};
+      \node[state] (q7) at (7.5,-1) {7};
+      \node[final] (q5) at (10,0) {5};
+      \node[final] (q6) at (10,-1) {6};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q0) edge [out=60,in=135] node {The:Le/$0.3$} (q1)
+      edge [out=30,in=-135] node {A:Un/$0.2$} (q1)
+      edge [out=-45,in=180] node {A:Un/$0.3$} (q2)
+      edge [out=-135,in=-135,looseness=2] node {This:Ce/$0.2$} (q2)
+      (q1) edge [out=0,in=135] node {dog:chien/$1$} (q3)
+      (q2) edge [out=45,in=180] node {dog:chien/$0.3$} (q3)
+      edge [out=-45,in=-90,looseness=2] node {cat:chat/$0.7$} (q3)
+      (q3) edge [out=0,in=180] node {is:est/$0.5$} (q4)
+      (q3) edge  [out=-45,in=135] node {is:a/$0.5$} (q7)
+      (q4) edge [out=120,in=60,looseness=9] node {very:tr{\`{e}}s/$0.2$} (q4)
+      edge[out=0,in=180] node {cute:mignon/$0.8$} (q5)
+      (q7)  edge [out=-120,in=-60,looseness=7] node {very:tr{\`{e}}s/$0.2$} (q7)
+      edge[out=0,in=180] node {hungry:faim/$0.8$} (q6);
+    \end{tikzpicture}
+  }
+  
+  A {\bf (Weighted) Finite State Transducer (WFST)} is a (W)FSA with two
+  labels on every transition:
+  \begin{itemize}
+  \item An input label, $i[t]\in\Sigma$, and
+  \item An output label, $o[t]\in\Omega$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The WFST Composition Algorithm}
+  \centerline{$C = A\circ B$}
+  \begin{itemize}
+  \item {\bf States:} The states of $C$ are $Q_C=Q_A\times Q_B$,
+    i.e., $q_C=(q_A,q_B)$.
+  \item {\bf Initial States:} $i_C=(i_A,i_B)$
+  \item {\bf Final States:} $F_C=F_A\times F_B$
+  \item {\bf Input Alphabet:} $\Sigma_C=\Sigma_A$
+  \item {\bf Output Alphabet:} $\Omega_C=\Omega_B$
+  \item {\bf Transitions:}
+    \begin{enumerate}
+    \item Every pair $q_A\in Q_A,t_B\in E_B$ with $i[t_B]=\epsilon$
+      creates a transition $t_C$ from $(q_A,p[t_B])$ to
+      $(q_A,n[t_B])$.
+    \item Every pair $t_A\in E_A,q_B\in Q_B$ with $o[t_A]=\epsilon$
+      creates a transition $t_C$ from $(p[t_A],q_B)$ to $(n[t_A],q_B)$.
+    \item Every pair $t_A\in E_A,t_B\in E_B$ with $o[t_A]=i[t_B]$ 
+      creates a transition $t_C$ from $(p[t_A],p[t_B])$ to
+      $(n[t_A],n[t_B])$.
+    \end{enumerate}
+  \end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Common FSTs]{Common FSTs in Automatic Speech Recognition}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{The Standard FSTs in Automatic Speech Recognition}
+  \begin{enumerate}
+  \item The observation, $O$
+  \item The hidden Markov model, $H$
+  \item The context, $C$
+  \item The lexicon, $L$
+  \item The grammar, $G$
+  \end{enumerate}
+  MP5 will use $L$ and $G$, so those are the ones you need to pay
+  attention to.  At the input we'll use a transcription $T$ which is
+  basically $T=O\circ H\circ C$, so you won't need to remember the
+  details of those transducers, just their output.
+\end{frame}
+
+\begin{frame}
+  \frametitle{The observation, $O$}
+
+  \begin{itemize}
+  \item WFST-based speech recognition begins by turning the speech
+    spectrogram into a WFST.
+  \item The input alphabet is $\Sigma=$the set of acoustic feature
+    vectors.
+  \item The output alphabet is $\Omega=\left\{1,\ldots,N\right\}$,
+    the PDFIDs.
+  \end{itemize}
+  \begin{center}
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \tikzstyle{dot}=[circle,thick,draw=black,fill=black]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,0) {};
+      \node[state] (q1) at (2.5,0) {};
+      \node[state] (q2) at (5,0) {};
+      \node[state] (q3) at (7.5,0) {};
+      \node[final] (q4) at (10,0) {};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q0) edge [out=60,in=120] node {\tiny{1/$b_1(\vec{x}_1)$}} (q1)
+      edge [out=30,in=150] node {\tiny{2/$b_2(\vec{x}_1)$}} (q1)
+      edge [out=-30,in=-150] node {\tiny{N-1/$b_{N-1}(\vec{x}_1)$}} (q1)
+      edge [out=-60,in=-120] node {\tiny{N/$b_N(\vec{x}_1)$}} (q1)
+      (q1) edge [out=60,in=120] node {\tiny{1/$b_1(\vec{x}_2)$}} (q2)
+      edge [out=30,in=150] node {\tiny{2/$b_2(\vec{x}_2)$}} (q2)
+      edge [out=-30,in=-150] node {\tiny{N-1/$b_{N-1}(\vec{x}_2)$}} (q2)
+      edge [out=-60,in=-120] node {\tiny{N/$b_N(\vec{x}_2)$}} (q2)
+      (q2) edge [out=60,in=120] node {\tiny{1/$b_1(\vec{x}_3)$}} (q3)
+      edge [out=30,in=150] node {\tiny{2/$b_2(\vec{x}_3)$}} (q3)
+      edge [out=-30,in=-150] node {\tiny{N-1/$b_{N-1}(\vec{x}_3)$}} (q3)
+      edge [out=-60,in=-120] node {\tiny{N/$b_N(\vec{x}_3)$}} (q3)
+      (q3) edge [out=60,in=120] node {\tiny{1/$b_1(\vec{x}_4)$}} (q4)
+      edge [out=30,in=150] node {\tiny{2/$b_2(\vec{x}_4)$}} (q4)
+      edge [out=-30,in=-150] node {\tiny{N-1/$b_{N-1}(\vec{x}_4)$}} (q4)
+      edge [out=-60,in=-120] node {\tiny{N/$b_N(\vec{x}_4)$}} (q4);
+    \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The hidden Markov model, $H$}
+
+  \begin{itemize}
+  \item Input alphabet is $\Sigma=\left\{1,\ldots,N\right\}$,
+    the set of PDFIDs.
+  \item Output alphabet, $\Omega$, is a set of {\bf context-dependent
+    phone labels}, e.g., {\bf triphones:} $o[t]=$/\#-\ipa{a+b}/ means
+    the sound an \ipa{/a/} makes when preceded by silence, and
+    followed by~\ipa{/b/}.
+  \end{itemize}
+  \begin{center}
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \tikzstyle{dot}=[circle,thick,draw=black,fill=black]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[final] (q0) at (0,0) {};
+      \node[state] (q1) at (2,0) {};
+      \node[state] (q2) at (4,0) {};
+      \node[state] (q3) at (6,0) {};
+      \node[state] (q4) at (10,0) {};
+      \node[state] (q6) at (2,-0.75) {};
+      \node[state] (q7) at (4,-0.75) {};
+      \node[state] (q8) at (6,-0.75) {};
+      \node[state] (q9) at (2,-2) {};
+      \node[state] (q10) at (4,-2) {};
+      \node[state] (q11) at (6,-2) {};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q0) edge [out=0,in=180] node {1:$\epsilon$} (q1)
+      edge [out=-60,in=180] node {4:$\epsilon$} (q6)
+      edge [out=-90,in=180] node {{\tiny{$N-2$}}:$\epsilon$} (q9)
+      (q1) edge [out=120,in=60,looseness=4] node {1:$\epsilon$} (q1)
+      edge [out=0,in=180] node {2:$\epsilon$} (q2)
+      (q2) edge [out=120,in=60,looseness=4] node {2:$\epsilon$} (q2)
+      edge [out=0,in=180] node {3:$\epsilon$} (q3)
+      (q3) edge [out=120,in=60,looseness=4] node {3:$\epsilon$} (q3)
+      edge [out=0,in=180] node {$\epsilon$:/\#-\ipa{a}+\#/} (q4)
+      (q6) edge [out=-60,in=-120,looseness=4] node {4:$\epsilon$} (q6)
+      edge [out=0,in=180] node {5:$\epsilon$} (q7)
+      (q7) edge [out=-60,in=-120,looseness=4] node {5:$\epsilon$} (q7)
+      edge [out=0,in=180] node {6:$\epsilon$} (q8)
+      (q8) edge [out=-60,in=-120,looseness=4] node {6:$\epsilon$} (q8)
+      edge [out=0,in=-135] node {$\epsilon$:/\#-\ipa{a+a}/} (q4)
+      (q9) edge [out=-60,in=-120,looseness=4] node {{\tiny{$N-2$}}:$\epsilon$} (q9)
+      edge [out=0,in=180] node {{\tiny{$N-1$}}:$\epsilon$} (q10)
+      (q10) edge [out=-60,in=-120,looseness=4] node {{\tiny{$N-1$}}:$\epsilon$} (q10)
+      edge [out=0,in=180] node {$N$:$\epsilon$} (q11)
+      (q11) edge [out=-60,in=-120,looseness=4] node {$N$:$\epsilon$} (q11)
+      edge [out=0,in=-90] node {$\epsilon$:/\#-\ipa{a+b}/} (q4)
+      (q4) edge [out=150,in=30] node {$\epsilon$:$\epsilon$} (q0);
+    \end{tikzpicture}
+  \end{center}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Context Transducer, $C$}
+
+  \begin{itemize}
+  \item Input alphabet, $\Sigma$, is {\bf context-dependent
+    phone labels}, e.g., $o[t]=$/\#-\ipa{a}+\#/.
+  \item Output alphabet, $\Omega$, is {\bf context-independent phone
+    labels}, e.g., /\ipa{a}/.
+  \end{itemize}
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[state] (qaa) at (0,0) {};
+      \node[state] (qab) at (3.5,0) {};
+      \node[state] (qba) at (0,-3.5) {};
+      \node[final] (qbb) at (3.5,-3.5) {};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (qaa) edge [out=150,in=-150,looseness=12] node {/a-a+a/:$[$a$]$} (qaa)
+      edge [out=0,in=180] node {/a-a+\#/:$[$a$]$} (qab)
+      (qbb) edge [out=-30,in=30,looseness=12] node {/\#-\#+\#/:$[$\#$]$} (qbb)
+      edge [out=180,in=0] node {/\#-\#+a/:$[$\#$]$} (qba)
+      (qab) edge [out=-120,in=30] node {/a-\#+a/:$[$\#$]$} (qba)
+      edge [out=-90,in=90] node {/a-\#+\#/:$[$a$]$} (qbb)
+      (qba) edge [out=90,in=-90] node {/\#-a+a/:$[$\#$]$} (qaa)
+      edge [out=60,in=-150] node {/\#-a+\#/:$[$\#$]$} (qab);
+    \end{tikzpicture}
+    }
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Lexicon, $L$}
+  \begin{itemize}
+  \item Input alphabet, $\Sigma$, is {\bf phone
+    labels}, e.g., /\ipa{@}/.
+  \item Output  alphabet, $\Omega$, is {\bf words}.
+  \end{itemize}
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[final] (q0) at (0,0) {};
+      \node[state] (q12) at (2.5,1) {};
+      \node[state] (q13) at (2.5,2) {};
+      \node[state] (q14) at (2.5,3) {};
+      \node[state] (q22) at (5,1) {};
+      \node[state] (q23) at (5,2) {};
+      \node[state] (q25) at (5,4) {};
+      \node[state] (q31) at (7.5,0) {};
+      \node[state] (q32) at (7.5,1) {};
+      \node[state] (q33) at (7.5,2) {};
+      \node[state] (q34) at (7.5,3) {};
+      \node[state] (q35) at (7.5,4) {};
+      \node[state] (q4) at (10,0) {};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (q0) edge [out=0,in=180] node {\ipa{[@]}:$\epsilon$} (q31)
+      (q0) edge [out=30,in=180] node {\ipa{[k]}:$\epsilon$} (q12)
+      (q0) edge [out=60,in=180] node {\ipa{[d]}:$\epsilon$} (q13)
+      (q0) edge [out=90,in=180] node {\ipa{[D]}:$\epsilon$} (q14)
+      (q12) edge [out=0,in=180] node {\ipa{[\ae]}:$\epsilon$} (q22)
+      (q13) edge [out=0,in=180] node {\ipa{[O]}:$\epsilon$} (q23)
+      (q14) edge [out=0,in=180] node {\ipa{[@]}:$\epsilon$} (q34)
+      (q14) edge [out=45,in=180] node {\ipa{[I]}:$\epsilon$} (q25)
+      (q22) edge [out=0,in=180] node {\ipa{[t]}:$\epsilon$} (q32)
+      (q23) edge [out=0,in=180] node {\ipa{[g]}:$\epsilon$} (q33)
+      (q25) edge [out=0,in=180] node {\ipa{[s]}:$\epsilon$} (q35)
+      (q31) edge [out=0,in=180] node {$\epsilon$:A} (q4)
+      (q32) edge [out=0,in=160] node {$\epsilon$:cat} (q4)
+      (q33) edge [out=0,in=140] node {$\epsilon$:dog} (q4)
+      (q34) edge [out=0,in=120] node {$\epsilon$:The} (q4)
+      (q35) edge [out=0,in=100] node {$\epsilon$:This} (q4)
+      (q4) edge [out=-150,in=-30] node {$\epsilon$:$\epsilon$} (q0);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Grammar, $G$}
+  \begin{itemize}
+  \item Input alphabet, $\Sigma$, is {\bf words}, and
+  \item Output  alphabet, $\Omega$, is also {\bf words}.
+  \item Edge weights show $p(w)$
+  \end{itemize}
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[final] (q0) at (0,0) {};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (q0) edge[out=120,in=60,looseness=5] node {a/$p($a$)$} (q0)
+       edge[out=30,in=-30,looseness=5] node {about/$p($about$)$} (q0)
+       edge[out=-60,in=-120,looseness=5] node {above/$p($above$)$} (q0)
+       edge[out=-150,in=150,looseness=5] node {of/$p($of$)$} (q0);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Standard  WFSTs}
+  \begin{itemize}
+  \item $H,C,L$ and $G$ all start in state 0, and end in state 0.
+    That way they can make as many complete loops as necessary.
+  \item $O$ starts at the beginning of the speech file, and ends at
+    the end, with NO LOOPS.
+  \item The most important edge weights are in $O$ and $G$, the {\bf
+    acoustic model} and {\bf language model} respectively.
+  \item The other transducers ($H$, $C$, and $L$) are used to
+    scale up from 10ms (scale of $x_t$) to 400ms (scale of $w$)
+  \end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Laplace Smoothing]{Training a Grammar: Laplace Smoothing}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \begin{itemize}
+  \item You already know how to train the acoustic model.
+  \item How can you train the language model?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{N-Gram Language Model}
+
+  An N-gram language model is a model in which the probability of word
+  $w_N$ depends on the $N-1$ words that went before it:
+  \begin{displaymath}
+    p(w_N|\mbox{context}) \equiv p(w_N|w_1,w_2,\ldots,w_{N-1})
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Maximum Likelihood N-Grams}
+
+  Suppose you have some training texts, for example:
+  \begin{block}{Example Training Texts}
+    when telling of nicholas the second the
+    temptation is to start at the dramatic end the july nineteen eighteen
+    massacre of him his entire family his household help and personal
+    physician by which the triumphant communist movement introduced its
+    rule
+  \end{block}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Maximum Likelihood N-Grams}
+
+  The {\bf maximum-likelihood} estimates of $p(w_3|w_1,w_2)$ are
+  defined to be the estimates that maximize the {\bf likelihood} of
+  the training data,
+  \begin{displaymath}
+    {\mathcal L}=\prod_{w_i\in \mbox{training text}} p(w_i|w_{i-2},w_{i-1}),
+  \end{displaymath}
+  subject to the constraints that
+  \begin{displaymath}
+    \sum_{w_i} p(w_i|w_{i-2},w_{i-1})=1,~~~p(w_i|w_{i-2},w_{i-1})\ge 0
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Maximum Likelihood N-Grams}
+
+  The maximum-likelihood estimate turns  out to be
+  \begin{displaymath}
+    p(w_i|w_{i-2},w_{i-1})=
+    \frac{\mbox{\# times}~w_i~\mbox{followed}~w_{i-2},w_{i-1}}{\mbox{\# times}~w_{i-2},w_{i-1}~\mbox{appeared in sequence}}
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Maximum Likelihood N-Grams: Example}
+
+  In the following text, the bigram probabilities are
+  \begin{displaymath}
+    p(w_i|w_{i-1}=\mbox{the})=
+    \begin{cases}
+      0.2 & w_i\in\left\{\begin{array}{c}\mbox{second}\\\mbox{temptation}\\\mbox{dramatic}\\\mbox{july}\\\mbox{triumphant}\end{array}\right\}\\
+      0 & \mbox{otherwise}
+    \end{cases}
+  \end{displaymath}
+  \begin{block}{Example Training Texts}
+    when telling of nicholas the second the
+    temptation is to start at the dramatic end the july nineteen eighteen
+    massacre of him his entire family his household help and personal
+    physician by which the triumphant communist movement introduced its
+    rule
+  \end{block}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Problem with Maximum Likelihood}
+
+  The problem with maximum likelihood is those zeros.  For example,
+  suppose you used this model:
+  \begin{displaymath}
+    p(w_i|w_{i-1}=\mbox{the})=
+    \begin{cases}
+      0.2 & w_i\in\left\{\begin{array}{c}\mbox{second}\\\mbox{temptation}\\\mbox{dramatic}\\\mbox{july}\\\mbox{triumphant}\end{array}\right\}\\
+      0 & \mbox{otherwise}
+    \end{cases}
+  \end{displaymath}
+  but what the person actually said was:
+  \begin{block}{}
+    where is the cafeteria?
+  \end{block}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Laplace Smoothing}
+  \begin{itemize}
+  \item Laplace proposed the following solution:
+  \item Pretend that every word in the vocabulary has occurred at least once in every possible context.
+  \end{itemize}
+  This results in the following formula:
+  \begin{displaymath}
+    p(w_i|w_{i-2},w_{i-1})=
+    \frac{\mbox{1+\# times}~w_i~\mbox{followed}~w_{i-2},w_{i-1}}{V+\mbox{\# times}~w_{i-2},w_{i-1}~\mbox{appeared in sequence}}
+  \end{displaymath}
+  where $V$ is the number of distinct words in the vocabulary.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Composition]{Composition}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{The WFST Composition Algorithm}
+  \centerline{$C = A\circ B$}
+  \begin{itemize}
+  \item {\bf States:} The states of $C$ are $Q_C=Q_A\times Q_B$,
+    i.e., $q_C=(q_A,q_B)$.
+  \item {\bf Initial States:} $i_C=(i_A,i_B)$
+  \item {\bf Final States:} $F_C=F_A\times F_B$
+  \item {\bf Input Alphabet:} $\Sigma_C=\Sigma_A$
+  \item {\bf Output Alphabet:} $\Omega_C=\Omega_B$
+  \item {\bf Transitions:}
+    \begin{enumerate}
+    \item Every pair $q_A\in Q_A,t_B\in E_B$ with $i[t_B]=\epsilon$
+      creates a transition $t_C$ from $(q_A,p[t_B])$ to
+      $(q_A,n[t_B])$.
+    \item Every pair $t_A\in E_A,q_B\in Q_B$ with $o[t_A]=\epsilon$
+      creates a transition $t_C$ from $(p[t_A],q_B)$ to $(n[t_A],q_B)$.
+    \item Every pair $t_A\in E_A,t_B\in E_B$ with $o[t_A]=i[t_B]$ 
+      creates a transition $t_C$ from $(p[t_A],p[t_B])$ to
+      $(n[t_A],n[t_B])$.
+    \end{enumerate}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Composition Example} For example, suppose we try to
+  compose this two-phoneme observation with this two-word lexicon:
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (q0) at (0,0) {0};
+      \node[state] (q1) at (2.5,0) {1};
+      \node[final] (q2) at (5,0) {2};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (q0) edge [out=0,in=180] node {\ipa{@}:\ipa{@}} (q1)
+      (q1) edge [out=0,in=180] node {\ipa{v}:\ipa{v}} (q2);
+    \end{tikzpicture}
+  }
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[final] (qa) at (0,0) {a};
+      \node[state] (qb) at (2.5,0) {b};
+      \node[state] (qc) at (5,0) {c};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (qa) edge [out=0,in=180] node {\ipa{[@]}:$\epsilon$} (qb)
+      (qb) edge [out=0,in=180] node {\ipa{[v]}:$\epsilon$} (qc)
+      edge[out=90,in=90] node {$\epsilon$:a} (qa)
+      (qc) edge [out=-90,in=-90] node {$\epsilon$:of} (qa);
+    \end{tikzpicture}
+  }
+\end{frame}
+  
+\begin{frame}
+  \frametitle{Composition Example}
+  We wind up with the following transducer:
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (a0) at (0,5) {a0};
+      \node[state] (a1) at (2.5,5) {a1};
+      \node[final] (a2) at (5,5) {a2};
+      \node[state] (b0) at (0,2.5) {b0};
+      \node[state] (b1) at (2.5,2.5) {b1};
+      \node[state] (b2) at (5,2.5) {b2};
+      \node[state] (c0) at (0,0) {c0};
+      \node[state] (c1) at (2.5,0) {c1};
+      \node[state] (c2) at (5,0) {c2};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (a0) edge [out=-45,in=135] node {\ipa{@}:$\epsilon$} (b1)
+      (b1) edge [out=-45,in=135] node {\ipa{v}:$\epsilon$} (c2)
+      (b0) edge [out=90,in=-90] node {$\epsilon$:a} (a0)
+      (b1) edge [out=90,in=-90] node {$\epsilon$:a} (a1)
+      (b2) edge [out=90,in=-90] node {$\epsilon$:a} (a2)
+      (c0) edge [out=120,in=-120] node {$\epsilon$:of} (a0)
+      (c1) edge [out=60,in=-60] node {$\epsilon$:of} (a1)
+      (c2) edge [out=60,in=-60] node {$\epsilon$:of} (a2);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{WFST Composition: Comments}
+  \begin{itemize}
+  \item The $\epsilon$ strings add a lot of transitions that are not
+    connected to anything!
+  \item This is necessary, in order to make sure we get the $\epsilon$
+    transition that we actually need.
+  \item The only way to keep the connected transition, and eliminate
+    unconnected ones, is by using a search algorithm to find all the
+    paths through the graph.
+  \item I recommend: do composition {\bf first}, then implement
+    the search algorithm as part of {\bf  topological sorting}.
+  \end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Toposort]{Topological Sorting}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Topological Sorting}
+
+  A graph is {\bf topologically sorted} if every transition's
+  end state has a higher number than its start state:
+  \begin{displaymath}
+    n[t] \ge p[t]~~\forall t
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Topological Sorting: Example}
+
+  This graph is not topologically sorted:
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (a0) at (0,5) {0};
+      \node[state] (a1) at (2.5,5) {1};
+      \node[final] (a2) at (5,5) {2};
+      \node[state] (b0) at (0,2.5) {3};
+      \node[state] (b1) at (2.5,2.5) {4};
+      \node[state] (b2) at (5,2.5) {5};
+      \node[state] (c0) at (0,0) {6};
+      \node[state] (c1) at (2.5,0) {7};
+      \node[state] (c2) at (5,0) {8};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (a0) edge [out=-45,in=135] node {\ipa{@}:$\epsilon$} (b1)
+      (b1) edge [out=-45,in=135] node {\ipa{v}:$\epsilon$} (c2)
+      (b0) edge [out=90,in=-90] node {$\epsilon$:a} (a0)
+      (b1) edge [out=90,in=-90] node {$\epsilon$:a} (a1)
+      (b2) edge [out=90,in=-90] node {$\epsilon$:a} (a2)
+      (c0) edge [out=120,in=-120] node {$\epsilon$:of} (a0)
+      (c1) edge [out=60,in=-60] node {$\epsilon$:of} (a1)
+      (c2) edge [out=60,in=-60] node {$\epsilon$:of} (a2);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{Topological Sorting: Example}
+
+  This graph {\bf is} topologically sorted:
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text width=0.25cm,fill=white]    
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (a0) at (0,5) {2};
+      \node[state] (a1) at (2.5,5) {5};
+      \node[final] (a2) at (5,5) {8};
+      \node[state] (b0) at (0,2.5) {1};
+      \node[state] (b1) at (2.5,2.5) {4};
+      \node[state] (b2) at (5,2.5) {7};
+      \node[state] (c0) at (0,0) {0};
+      \node[state] (c1) at (2.5,0) {3};
+      \node[state] (c2) at (5,0) {6};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (a0) edge [out=-45,in=135] node {\ipa{@}:$\epsilon$} (b1)
+      (b1) edge [out=-45,in=135] node {\ipa{v}:$\epsilon$} (c2)
+      (b0) edge [out=90,in=-90] node {$\epsilon$:a} (a0)
+      (b1) edge [out=90,in=-90] node {$\epsilon$:a} (a1)
+      (b2) edge [out=90,in=-90] node {$\epsilon$:a} (a2)
+      (c0) edge [out=120,in=-120] node {$\epsilon$:of} (a0)
+      (c1) edge [out=60,in=-60] node {$\epsilon$:of} (a1)
+      (c2) edge [out=60,in=-60] node {$\epsilon$:of} (a2);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+\begin{frame}
+  \begin{block}{Why Topologically Sort?}
+    The following algorithms are all {\bf much} more efficient if a
+    graph is first topologically sorted:
+    \begin{itemize}
+    \item best-path
+    \item forward algorithm
+    \item backward algorithm
+    \end{itemize}
+  \end{block}
+  \begin{block}{Why {\bf Not} Topologicaly Sort?}
+    \begin{itemize}
+    \item A graph with cycles cannot be topologically sorted.
+    \item If your code doesn't use an {\bf explored} set, you'll wind up in an infinite loop.
+    \item If your code uses an {\bf explored} set, after finishing your topological sort,
+      the graph will still not be topologically sorted (because there is no topological sort).
+    \end{itemize}
+  \end{block}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Topological Sort Algorithm = Breadth-First Search Algorithm = Dijkstra's Algorithm}
+
+  \begin{itemize}
+  \item Input: WFST $A$.
+  \item Output: WFST $B$, a copy of $A$ with topologically sorted
+    states, and with unconnected paths removed.
+  \item Required data structures:
+    \begin{enumerate}
+    \item A queue called the {\bf frontier}
+    \item A set called the {\bf explored} set (optional, but useful).
+    \item A dict {\bf A2B}:$Q_A\rightarrow Q_B$.
+    \end{enumerate}
+  \item Initialization:
+    \begin{enumerate}
+    \item Put $i_A$ into the frontier
+    \item Create state $i_B=A2B[i_A]$.
+    \end{enumerate}
+  \end{itemize}
+\end{frame}
+\begin{frame}
+  \frametitle{Topological Sort Algorithm = Breadth-First Search (BFS) Algorithm = Dijkstra's Algorithm}
+  
+  While the frontier is not empty:
+  \begin{enumerate}
+  \item Shift the next state, $p_A$, off the {\bf frontier}, and put
+    it in the {\bf explored} set.
+  \item For each transition $t_A$ starting in $p_A$:
+    \begin{enumerate}
+    \item Find its end state $n_A$.
+    \item Look up $p_B=A2B[p_A]$ and $n_B=A2B[n_A]$.  If $n_B$ does
+      not exist, create it.
+    \item Create a transition $t_B$ from $p_B$ to $n_B$.
+    \item If $n_A$ is not in {\bf frontier} or {\bf explored}, put it
+      in {\bf frontier}.
+    \end{enumerate}
+  \end{enumerate}
+\end{frame}      
+
+\begin{frame}
+  \frametitle{Topological Sorting: Example}
+
+  The BFS algorithm topologically sorts, and also eliminates
+  unconnected transitions, so we end up with:
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text
+      width=0.25cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text
+      width=0.25cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text
+      width=0.25cm,fill=white]
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (a0) at (0,5) {0};
+      \node[state] (a1) at (2.5,5) {2};
+      \node[final] (a2) at (5,5) {4};
+      \node[state] (b1) at (2.5,2.5) {1};
+      \node[state] (c2) at (5,0) {3};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (a0) edge [out=-45,in=135] node {\ipa{@}:$\epsilon$} (b1)
+      (b1) edge [out=-45,in=135] node {\ipa{v}:$\epsilon$} (c2)
+      (b1) edge [out=90,in=-90] node {$\epsilon$:a} (a1)
+      (c2) edge [out=60,in=-60] node {$\epsilon$:of} (a2);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Best Path]{Best Path}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Best-Path Algorithm for a WFST}
+
+  Best-path for a WFST is just like for a WFSA, except {\bf we no
+    longer have to worry about the input string!}  We assume that
+  you've already composed $O\circ H\circ C\circ L\circ G$ and
+  topologically sorted, so that {\bf all remaining paths in the graph
+    match the input string}.  So best-path becomes very simple:
+  \begin{itemize}
+  \item {\bf Initialize} with path cost either $\bar{1}$ or $\bar{0}$:
+    \begin{displaymath}
+      \delta_0(i) = \begin{cases}
+        \bar{1} & i=\mbox{initial state}\\
+        \bar{0} & \mbox{otherwise}
+      \end{cases}
+    \end{displaymath}
+  \item {\bf Iterate} over states, $j\in Q$:
+    \begin{align*}
+      \delta(j) &= \best_{t:n[t]=j} \delta_{k-1}(p[t]) \otimes w[t]\\
+      \psi(j) &= \argbest_{t:n[t]=j} \delta_{k-1}(p[t]) \otimes w[t]
+    \end{align*}
+  \item {\bf Backtrace} by reading best transition from the backpointer:
+    \begin{displaymath}
+      t^*(j) = \psi(j),~~~~~q^*(t)=p[t^*(j)]
+    \end{displaymath}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Best-Path Algorithm for a Topologically Sorted WFST}
+
+  The best-path algorithm is very efficient for a topologically sorted
+  WFST:
+  \begin{enumerate}
+  \item Sort the transitions in ascending order of their start state.
+  \item Then step through the transitions in order, checking, for each
+    transition, whether or not $\delta(p[t]) \otimes w[t]$ is better than
+    $\delta(n[t])$.  If  it is, update     $\delta(n[t])$. 
+  \item Topological sort = all transitions for which $j=p[t]$ are
+    sorted after the transitions for which $j=n[t]$.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Best-Path Example}
+
+  Suppose this graph now has these surprisal weights:
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text
+      width=0.5cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text
+      width=0.5cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text
+      width=0.5cm,fill=white]
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (a0) at (0,5) {};
+      \node[state] (a1) at (2.5,5) {};
+      \node[final] (a2) at (5,5) {};
+      \node[state] (b1) at (2.5,2.5) {};
+      \node[state] (c2) at (5,0) {};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (a0) edge [out=-45,in=135] node {$1.2$} (b1)
+      edge[out=0,in=-180] node {$3.4$} (a1)
+      (b1) edge [out=-45,in=135] node {$0.6$} (c2)
+      (b1) edge [out=90,in=-90] node {$1.8$} (a1)
+      (a1) edge[out=0,in=-180] node {$4.1$} (a2)
+      (c2) edge [out=60,in=-60] node {$0.7$} (a2);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{Best-Path Example}
+
+  Start with $\delta(0)=0$:
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text
+      width=0.5cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text
+      width=0.5cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text
+      width=0.5cm,fill=white]
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (a0) at (0,5) {$0$};
+      \node[state] (a1) at (2.5,5) {};
+      \node[final] (a2) at (5,5) {};
+      \node[state] (b1) at (2.5,2.5) {};
+      \node[state] (c2) at (5,0) {};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (a0) edge [out=-45,in=135] node {$1.2$} (b1)
+      edge[out=0,in=-180] node {$3.4$} (a1)
+      (b1) edge [out=-45,in=135] node {$0.6$} (c2)
+      (b1) edge [out=90,in=-90] node {$1.8$} (a1)
+      (a1) edge[out=0,in=-180] node {$4.1$} (a2)
+      (c2) edge [out=60,in=-60] node {$0.7$} (a2);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{Best-Path Example}
+
+  Update all the states that can be reached from $q=0$:
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text
+      width=0.5cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text
+      width=0.5cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text
+      width=0.5cm,fill=white]
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (a0) at (0,5) {$0$};
+      \node[state] (a1) at (2.5,5) {$3.4$};
+      \node[final] (a2) at (5,5) {};
+      \node[state] (b1) at (2.5,2.5) {$1.2$};
+      \node[state] (c2) at (5,0) {};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (a0) edge [out=-45,in=135] node {$1.2$} (b1)
+      edge[out=0,in=-180] node {$3.4$} (a1)
+      (b1) edge [out=-45,in=135] node {$0.6$} (c2)
+      (b1) edge [out=90,in=-90] node {$1.8$} (a1)
+      (a1) edge[out=0,in=-180] node {$4.1$} (a2)
+      (c2) edge [out=60,in=-60] node {$0.7$} (a2);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{Best-Path Example}
+
+  Then, states that can be reached from $q=1$:
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text
+      width=0.5cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text
+      width=0.5cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text
+      width=0.5cm,fill=white]
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (a0) at (0,5) {$0$};
+      \node[state] (a1) at (2.5,5) {$3.0$};
+      \node[final] (a2) at (5,5) {};
+      \node[state] (b1) at (2.5,2.5) {$1.2$};
+      \node[state] (c2) at (5,0) {$1.8$};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (a0) edge [out=-45,in=135] node {$1.2$} (b1)
+      edge[out=0,in=-180] node {$3.4$} (a1)
+      (b1) edge [out=-45,in=135] node {$0.6$} (c2)
+      (b1) edge [out=90,in=-90] node {$1.8$} (a1)
+      (a1) edge[out=0,in=-180] node {$4.1$} (a2)
+      (c2) edge [out=60,in=-60] node {$0.7$} (a2);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{Best-Path Example}
+
+  Then, states that can be reached from $q=2$:
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text
+      width=0.5cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text
+      width=0.5cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text
+      width=0.5cm,fill=white]
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (a0) at (0,5) {$0$};
+      \node[state] (a1) at (2.5,5) {$3.0$};
+      \node[final] (a2) at (5,5) {$7.1$};
+      \node[state] (b1) at (2.5,2.5) {$1.2$};
+      \node[state] (c2) at (5,0) {$1.8$};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (a0) edge [out=-45,in=135] node {$1.2$} (b1)
+      edge[out=0,in=-180] node {$3.4$} (a1)
+      (b1) edge [out=-45,in=135] node {$0.6$} (c2)
+      (b1) edge [out=90,in=-90] node {$1.8$} (a1)
+      (a1) edge[out=0,in=-180] node {$4.1$} (a2)
+      (c2) edge [out=60,in=-60] node {$0.7$} (a2);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{Best-Path Example}
+
+  Then, states that can be reached from $q=3$:
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text
+      width=0.5cm,fill=white]
+    \tikzstyle{initial}=[circle,thick,draw=blue,text
+      width=0.5cm,fill=white]
+    \tikzstyle{final}=[circle,double,draw=blue,text
+      width=0.5cm,fill=white]
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[initial] (a0) at (0,5) {$0$};
+      \node[state] (a1) at (2.5,5) {$3.0$};
+      \node[final] (a2) at (5,5) {$2.5$};
+      \node[state] (b1) at (2.5,2.5) {$1.2$};
+      \node[state] (c2) at (5,0) {$1.8$};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (a0) edge [out=-45,in=135] node {$1.2$} (b1)
+      edge[out=0,in=-180] node {$3.4$} (a1)
+      (b1) edge [out=-45,in=135] node {$0.6$} (c2)
+      (b1) edge [out=90,in=-90] node {$1.8$} (a1)
+      (a1) edge[out=0,in=-180] node {$4.1$} (a2)
+      (c2) edge [out=60,in=-60] node {$0.7$} (a2);
+    \end{tikzpicture}
+  }
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Re-Estimation]{Re-Estimating WFST Transition Weights}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{What do you re-estimate?}
+
+  Suppose we want to re-estimate the weight of transition $t$ as the
+  conditional probability of $t$ given its preceding state, $p[t]=j$:
+  \begin{displaymath}
+    w[t] = p(t|p[t])
+  \end{displaymath}
+  A reasonable way to re-estimate this would be
+  \begin{displaymath}
+    w[t] = \frac{E[\mbox{\# times edge $t$ was taken}]}{E[\mbox{\# times state $p[t]=j$ was reached}]}
+  \end{displaymath}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{What do you re-estimate?}
+
+
+  We don't really want to re-estimate edges in the whole stack,
+  $OHCLG=O\circ H\circ C\circ L\circ G$, because $O$ is just one
+  observation file.
+  What we really want is to estimate edges of a particular
+  transducer, e.g., the lexicon.
+  \begin{align*}
+    w[t_L] &= \frac{E[\mbox{\# times $L$'s edge $t_L$ was taken}]}{E[\mbox{\# times $L$'s state $p[t_L]=j$ was reached}]}\\
+    &=\frac{\sum_{t_{OCHLG}\subset t_L}p(t_{OHCLG})}{\sum_{t_L:p[t_L]=j}\sum_{t_{OCHLG}\subset t_L}p(t_{OHCLG})}
+  \end{align*}
+  \begin{enumerate}
+    \item Find the probability of every transition in the full-stack, $p(t_{OHCLG})$,
+    \item Add over all of the full-stack transitions, $t_{OHCLG}$, that correspond  to
+      lexicon transition $t_L$ (notation: $t_{OHCLG}\subset t_L$).
+    \item Divide by the marginal.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  Next question: how do we find $p(t_{OHCLG})$?
+\end{frame}
+
+\begin{frame}
+  \frametitle{Probability of transition $t$ = Sum of probs of paths including $t$}
+
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.5cm,fill=white]
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[state] (pp0) at (0,1) {};
+      \node[state] (pp1) at (0,0.5) {};
+      \node[state] (pp2) at (0,0) {};
+      \node[state] (pp3) at (0,-0.5) {};
+      \node[state] (pp4) at (0,-0.5) {};
+      \node[state] (p) at (2,0) {$j$};
+      \node[state] (n) at (5,0) {$k$};
+      \node[state] (nn0) at (7,1) {};
+      \node[state] (nn1) at (7,0.5) {};
+      \node[state] (nn2) at (7,0)  {};
+      \node[state] (nn3) at (7,-0.5) {};
+      \node[state] (nn4) at (7,-1) {};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (pp0) edge (p)
+      (pp1) edge (p)
+      (pp2) edge (p)
+      (pp3) edge (p)
+      (pp4) edge (p)
+      (p) edge node {$t$} (n)
+      (n) edge (nn0)
+      (n) edge (nn1)
+      (n) edge (nn2)
+      (n) edge (nn3)
+      (n) edge (nn4);
+    \end{tikzpicture}
+  }
+
+  Use $\pi=[0,1,\ldots,j,k,\ldots]$ to mean a path through the whole
+  transducer.  It has partial paths $\pi[:j]=[0,1,\ldots,j]$ and
+  $\pi[:j]=[k,\ldots]$.  Then
+  \begin{align*}
+    p(t) &= \sum_{\pi~\mbox{includes}~t} p(\pi)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{WFST Forward-Backward Algorithm}
+
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.5cm,fill=white]
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[state] (pp0) at (0,1) {};
+      \node[state] (pp1) at (0,0.5) {};
+      \node[state] (pp2) at (0,0) {};
+      \node[state] (pp3) at (0,-0.5) {};
+      \node[state] (pp4) at (0,-0.5) {};
+      \node[state] (p) at (2,0) {$j$};
+      \node[state] (n) at (5,0) {$k$};
+      \node[state] (nn0) at (7,1) {};
+      \node[state] (nn1) at (7,0.5) {};
+      \node[state] (nn2) at (7,0)  {};
+      \node[state] (nn3) at (7,-0.5) {};
+      \node[state] (nn4) at (7,-1) {};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (pp0) edge (p)
+      (pp1) edge (p)
+      (pp2) edge (p)
+      (pp3) edge (p)
+      (pp4) edge (p)
+      (p) edge node {$t$} (n)
+      (n) edge (nn0)
+      (n) edge (nn1)
+      (n) edge (nn2)
+      (n) edge (nn3)
+      (n) edge (nn4);
+    \end{tikzpicture}
+  }
+
+  \begin{align*}
+    p(t) &= \sum_{\pi~\mbox{includes}~t} p(\pi)= \alpha(p[t])w[t]\beta(n[t]),
+  \end{align*}
+  \begin{itemize}
+    \item $\alpha(j)=\sum_{\pi[:j]} p(\pi[:j])$ is the probability of reaching state $j$.
+    \item $w[t]=p(t|p[t])$ is the probability of taking transition $t$, given that we
+      reached state $p[t]$.
+    \item $\beta(k)=\sum_{\pi[k:]} p\left(\left.\pi[k:]\right|k\right)$ is the probability of
+      making it to the end of the WFST, given that we made it to state $k$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{FST Forward Algorithm}
+  
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.5cm,fill=white]
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[state] (pp0) at (0,1) {$p[t_0']$};
+      \node[state] (pp1) at (0,0.5) {$p[t_1']$};
+      \node[state] (pp2) at (0,0) {$p[t_2']$};
+      \node[state] (pp3) at (0,-0.5) {$p[t_3']$};
+      \node[state] (pp4) at (0,-1) {$p[t_4']$};
+      \node[state] (p) at (2,0) {$j$};
+      \node[state] (n) at (5,0) {$k$};
+      \node[state] (nn0) at (7,1) {};
+      \node[state] (nn1) at (7,0.5) {};
+      \node[state] (nn2) at (7,0)  {};
+      \node[state] (nn3) at (7,-0.5) {};
+      \node[state] (nn4) at (7,-1) {};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (pp0) edge node {$t_0'$} (p)
+      (pp1) edge node {$t_1'$} (p)
+      (pp2) edge node {$t_2'$} (p)
+      (pp3) edge node {$t_3'$} (p)
+      (pp4) edge node {$t_4'$} (p)
+      (p) edge node {$t$} (n)
+      (n) edge (nn0)
+      (n) edge (nn1)
+      (n) edge (nn2)
+      (n) edge (nn3)
+      (n) edge (nn4);
+    \end{tikzpicture}
+  }
+  First, we need to find  $\alpha(j)$:
+  \begin{align*}
+    \alpha(j) &=\sum_{\pi[:j]} p(\pi[:j])\\
+    &= \sum_{t':n[t']=j} \alpha(p[t']) w[t']
+  \end{align*}
+\end{frame}  
+
+\begin{frame}
+  \frametitle{FST Backward Algorithm}
+  
+  \centerline{
+    \tikzstyle{state}=[circle,thin,draw=blue,text width=0.5cm,fill=white]
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick]
+      \node[state] (pp0) at (0,1) {};
+      \node[state] (pp1) at (0,0.5) {};
+      \node[state] (pp2) at (0,0) {};
+      \node[state] (pp3) at (0,-0.5) {};
+      \node[state] (pp4) at (0,-1) {};
+      \node[state] (p) at (2,0) {$j$};
+      \node[state] (n) at (5,0) {$k$};
+      \node[state] (nn0) at (7,1)  {$n[t_5']$};
+      \node[state] (nn1) at (7,0.5)  {$n[t_6']$};
+      \node[state] (nn2) at (7,0)  {$n[t_7']$};
+      \node[state] (nn3) at (7,-0.5) {$n[t_8']$};
+      \node[state] (nn4) at (7,-1) {$n[t_9']$};
+      \path[every node/.style={font=\sffamily\small,fill=white,inner sep=1pt}]
+      (pp0) edge node {} (p)
+      (pp1) edge node {} (p)
+      (pp2) edge node {} (p)
+      (pp3) edge node {} (p)
+      (pp4) edge node {} (p)
+      (p) edge node {$t$} (n)
+      (n) edge node {$t_5'$} (nn0)
+      (n) edge node {$t_6'$} (nn1)
+      (n) edge node {$t_7'$} (nn2)
+      (n) edge node {$t_8'$} (nn3)
+      (n) edge node {$t_9'$} (nn4);
+    \end{tikzpicture}
+  }
+  Then, we need to find  $\beta(k)$:
+  \begin{align*}
+    \beta(j) &=\sum_{\pi[k:]} p(\pi[k:])\\
+    &= \sum_{t':p[t']=k} w[t'] \beta(n[t'])
+  \end{align*}
+\end{frame}  
+
+
+\begin{frame}
+  \frametitle{Re-estimation: putting it all back together}
+
+  Then we just re-estimate the probability of every transition $t_L$
+  by adding up all the transitions $t$ in OHCLG.  If it helps you to
+  remember the idea, we can define a $\xi$ probability, like in HMMs:
+  \begin{align*}
+    \xi(t_L)  &= \sum_{t\subset t_L}\alpha(p[t])w[t]\beta(n[t])\\
+    w[t_L] &= \frac{\xi(t_L)}{\sum_{t':p[t']=p[t_L]}\xi(t')}
+  \end{align*}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Summary]{Summary}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{The Standard FSTs in Automatic Speech Recognition}
+  \begin{enumerate}
+  \item The observation, $O$, maps acoustic vectors to PDFIDs
+  \item The hidden Markov model, $H$, maps PDFIDs to triphones
+  \item The context transducer, $C$, maps triphones to phones
+  \item The lexicon, $L$, maps phones to words
+  \item The grammar, $G$, computes the probability of a word sequence
+  \end{enumerate}
+  MP5 will use $L$ and $G$, so those are the ones you need to pay
+  attention to.
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Laplace Smoothing: Unigram Language Model}
+  \begin{itemize}
+  \item Laplace proposed the following solution:
+  \item Pretend that every word in the vocabulary has occurred at least once.
+  \end{itemize}
+  This results in the following formula:
+  \begin{displaymath}
+    p(w)=
+    \frac{\mbox{1+\# times $w$ occurred}}{V+\mbox{\# word tokens in training data}}
+  \end{displaymath}
+  where $V$ is the number of distinct words in the vocabulary.
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{The WFST Composition Algorithm}
+  \centerline{$C = A\circ B$}
+  \begin{itemize}
+  \item {\bf States:} The states of $C$ are $Q_C=Q_A\times Q_B$,
+    i.e., $q_C=(q_A,q_B)$.
+  \item {\bf Initial States:} $i_C=(i_A,i_B)$
+  \item {\bf Final States:} $F_C=F_A\times F_B$
+  \item {\bf Input Alphabet:} $\Sigma_C=\Sigma_A$
+  \item {\bf Output Alphabet:} $\Omega_C=\Omega_B$
+  \item {\bf Transitions:}
+    \begin{enumerate}
+    \item Every pair $q_A\in Q_A,t_B\in E_B$ with $i[t_B]=\epsilon$
+      creates a transition $t_C$ from $(q_A,p[t_B])$ to
+      $(q_A,n[t_B])$.
+    \item Every pair $t_A\in E_A,q_B\in Q_B$ with $o[t_A]=\epsilon$
+      creates a transition $t_C$ from $(p[t_A],q_B)$ to $(n[t_A],q_B)$.
+    \item Every pair $t_A\in E_A,t_B\in E_B$ with $o[t_A]=i[t_B]$ 
+      creates a transition $t_C$ from $(p[t_A],p[t_B])$ to
+      $(n[t_A],n[t_B])$.
+    \end{enumerate}
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Topological Sort Algorithm = Breadth-First Search (BFS) Algorithm = Dijkstra's Algorithm}
+  
+  While the frontier is not empty:
+  \begin{enumerate}
+  \item Shift the next state, $p_A$, off the {\bf frontier}, and put
+    it in the {\bf explored} set.
+  \item For each transition $t_A$ starting in $p_A$:
+    \begin{enumerate}
+    \item Find its end state $n_A$.
+    \item Look up $p_B=A2B[p_A]$ and $n_B=A2B[n_A]$.  If $n_B$ does
+      not exist, create it.
+    \item Create a transition $t_B$ from $p_B$ to $n_B$.
+    \item If $n_A$ is not in {\bf frontier} or {\bf explored}, put it
+      in {\bf frontier}.
+    \end{enumerate}
+  \end{enumerate}
+\end{frame}      
+
+\begin{frame}
+  \frametitle{Best-Path Algorithm for a WFST}
+
+  Best-path for a WFST is just like for a WFSA, except {\bf we no
+    longer have to worry about the input string!}  We assume that
+  you've already composed $O\circ H\circ C\circ L\circ G$ and
+  topologically sorted, so that {\bf all remaining paths in the graph
+    match the input string}.  So best-path becomes very simple:
+  \begin{itemize}
+  \item {\bf Initialize} with path cost either $\bar{1}$ or $\bar{0}$:
+    \begin{displaymath}
+      \delta_0(i) = \begin{cases}
+        \bar{1} & i=\mbox{initial state}\\
+        \bar{0} & \mbox{otherwise}
+      \end{cases}
+    \end{displaymath}
+  \item {\bf Iterate} over states, $j\in Q$:
+    \begin{align*}
+      \delta(j) &= \best_{t:n[t]=j} \delta_{k-1}(p[t]) \otimes w[t]\\
+      \psi(j) &= \argbest_{t:n[t]=j} \delta_{k-1}(p[t]) \otimes w[t]
+    \end{align*}
+  \item {\bf Backtrace} by reading best transition from the backpointer:
+    \begin{displaymath}
+      t^*(j) = \psi(j),~~~~~q^*(t)=p[t^*(j)]
+    \end{displaymath}
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Re-estimation}
+  \begin{align*}
+    \alpha(j)&= \sum_{t':n[t']=j} \alpha(p[t']) w[t']
+  \end{align*}
+  \begin{align*}
+    \beta(j)&= \sum_{t':p[t']=k} w[t'] \beta(n[t'])
+  \end{align*}
+  \begin{align*}
+    \xi(t_L)  &= \sum_{t\subset t_L}\alpha(p[t])w[t]\beta(n[t])\\
+    w[t_L] &= \frac{\xi(t_L)}{\sum_{t':p[t']=p[t_L]}\xi(t')}
+  \end{align*}
+\end{frame}
+
+\end{document}
+

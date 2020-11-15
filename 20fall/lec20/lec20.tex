@@ -1,0 +1,373 @@
+\documentclass{beamer}
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc}
+\def\labelenumi\theenumi
+\usepackage{graphicx}
+\usepackage{amsmath}
+\mode<presentation>{\usetheme{Frankfurt}}
+\AtBeginSection
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 20: Rotating, Scaling, Shifting and Shearing an Image}
+\author{Mark Hasegawa-Johnson\\All content~\href{https://creativecommons.org/licenses/by-sa/4.0/}{CC-SA 4.0} unless otherwise specified.}
+\date{ECE 417: Multimedia Signal Processing, Fall 2020}  
+\institute{University of Illinois}
+\titlegraphic{\includegraphics{../../../17fall/lectures/imark_1867_bold.png}}
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Modifying an Image by Moving Its Points}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Moving Points Around}
+  First, let's suppose that somebody has given you a bunch of points:
+  \centerline{\includegraphics[width=4in]{../../../17fall/lectures/mp7_image006.jpg}}
+\end{frame}
+
+\begin{frame}
+  \begin{columns}[t]
+    \column{1in}
+    \begin{block}{}
+      \ldots and let's suppose you want to move them around, to create
+      new images\ldots
+    \end{block}
+    \column{4in}
+    \begin{block}{}
+      \centerline{\includegraphics[width=4in]{../../../17fall/lectures/huang_face_tracking.png}}
+    \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Moving One Point}
+  \begin{itemize}
+  \item Your goal is to synthesize an output image, $J[y,x]$, where
+    $J[y,x]$ might be intensity, or RGB vector, or whatever, $y$ is
+    {\bf row} number (measured from top to bottom), $x$ is {\bf
+      column} number (measured from left to right).
+  \item What you have available is:
+    \begin{itemize}
+    \item An input image, $I[n,m]$, sampled at integer values of $m$ and $n$.
+    \item Knowledge that the input point at $I(v,u)$ has been {\bf
+      moved} to the output point at $J[y,x]$, where $x$ and $y$ are
+      integers, but $u$ and $v$ might not be integers.
+    \end{itemize}
+  \end{itemize}
+  \[
+  J[y,x] = I(v,u)
+  \]
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Affine Transformations}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{How do we find $(u,v)$?}
+  Now the question: how do we find $(u,v)$?
+
+  For today, let's assume that this is a piece-wise affine transformation.
+  \[
+  \left[\begin{array}{c} u\\v\end{array}\right]=
+  \left[\begin{array}{cc}a&b\\d&e\end{array}\right]
+  \left[\begin{array}{c}x\\y\end{array}\right] +
+  \left[\begin{array}{c}c\\f\end{array}\right]
+  \]
+\end{frame}
+  
+\begin{frame}
+  \frametitle{How do we find $(u,v)$?}
+  An affine transformation is defined by:
+  \[
+  \left[\begin{array}{c} u\\v\end{array}\right]=
+  \left[\begin{array}{cc}a&b\\d&e\end{array}\right]
+  \left[\begin{array}{c}x\\y\end{array}\right] +
+  \left[\begin{array}{c}c\\f\end{array}\right]
+  \]
+  A much easier to write this is by using extended-vector notation:
+  \[
+  \left[\begin{array}{c} u\\v\\1\end{array}\right]=
+  \left[\begin{array}{ccc}a&b&c\\d&e&f\\0&0&1\end{array}\right]
+  \left[\begin{array}{c}x\\y\\1\end{array}\right]
+  \]
+  It's convenient to define $\vec{u}=[u,v,1]^T$, and
+  $\vec{x}=[x,y,1]^T$, so that for any $\vec{x}$ in the
+  output image,
+  \[
+  \vec{u}=A \vec{x}
+  \]
+\end{frame}
+  
+\begin{frame}
+  \frametitle{Affine Transforms}
+
+  Notice that the affine transformation has 6 degrees of freedom:
+  $(a,b,c,d,e,f)$.  Therefore, you can accmplish 6 different types of
+  transformation:
+  \begin{itemize}
+  \item Shift the image left$\leftrightarrow$right (using $c$)
+  \item Shift the image up$\leftrightarrow$down (using $f$)
+  \item Scale the image horizontally (using $a$)
+  \item Scale the image vertically (using $e$)
+  \item Rotate the image (using $a,b,d,e$)
+  \item Shear the image horizontally (using $b$)
+  \end{itemize}
+  Vertical shear (using $d$) is a combination of horizontal shear + rotation.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Reflection}
+  \centerline{\includegraphics[height=2in]{../../../17fall/lectures/Affine_Transformation_Original_Checkerboard.jpg}\includegraphics[height=2in]{../../../17fall/lectures/Affine_Transformation_Reflected_Checkerboard.jpg}}
+  \[
+  \left[\begin{array}{c} u\\v\\1\end{array}\right]=
+  \left[\begin{array}{ccc}-1&0&0\\0&1&0\\0&0&1\end{array}\right]
+  \left[\begin{array}{c}x\\y\\1\end{array}\right]
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Scale}
+  \centerline{\includegraphics[height=2in]{../../../17fall/lectures/Affine_Transformation_Original_Checkerboard.jpg}\includegraphics[height=2in]{../../../17fall/lectures/Affine_Transformation_Scale_Checkerboard.jpg}}
+  \[
+  \left[\begin{array}{c} u\\v\\1\end{array}\right]=
+  \left[\begin{array}{ccc}2&0&0\\0&1&0\\0&0&1\end{array}\right]
+  \left[\begin{array}{c}x\\y\\1\end{array}\right]
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Rotation}
+  \centerline{\includegraphics[height=2in]{../../../17fall/lectures/Affine_Transformation_Original_Checkerboard.jpg}\includegraphics[height=2in]{../../../17fall/lectures/Affine_Transformation_Rotated_Checkerboard.jpg}}
+  \[
+  \left[\begin{array}{c} u\\v\\1\end{array}\right]=
+  \left[\begin{array}{ccc}\cos\theta&-\sin\theta&0\\\sin\theta&\cos\theta&0\\0&0&1\end{array}\right]
+  \left[\begin{array}{c}x\\y\\1\end{array}\right]
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Shear}
+  \centerline{\includegraphics[height=2in]{../../../17fall/lectures/Affine_Transformation_Original_Checkerboard.jpg}\includegraphics[height=2in]{../../../17fall/lectures/Affine_Transformation_Shear_Checkerboard.jpg}}
+  \[
+  \left[\begin{array}{c} u\\v\\1\end{array}\right]=
+  \left[\begin{array}{ccc}1&0.5&0\\0&1&0\\0&0&1\end{array}\right]
+  \left[\begin{array}{c}x\\y\\1\end{array}\right]
+  \]
+\end{frame}
+
+\begin{frame}
+  \centerline{\href{https://www.youtube.com/watch?v=il6Z5LCykZk}{\includegraphics[width=4.5in]{../../../17fall/lectures/youtube_affine.png}}}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Image Interpolation}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \begin{block}{Integer Output Points}
+    Now let's suppose that you've figured out the coordinate transform:
+    for any given $J[y,x]$, you've figured out which pixel should be used to create it 
+    ($J[y,x]=I(v,u)$).
+    \lstinputlisting[language=Python]{interpolation_example.py}
+  \end{block}
+  \begin{block}{The Problem: Non-Integer Input Points}
+    If $[x,y]$ are integers, then usually, $(u,v)$ are not integers.
+  \end{block}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Image Interpolation}
+  The function compute\_pixel performs image interpolation.
+  Given the pixels of $I[n,m]$ at integer values of $m$ and $n$, it computes
+  the pixel at a non-integer position $I(v,u)$ as:
+  \[
+  I(v,u) = \sum_m\sum_n I[n,m] h(v-n,u-m)
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Piece-Wise Constant Interpolation}
+  \begin{equation}
+  I(v,u) = \sum_m\sum_n I[n,m] h(v-n,u-m)
+  \label{eq:interpolation1}
+  \end{equation}
+  For example, suppose
+  \[
+  h(v,u) = \left\{\begin{array}{ll}
+  1 & 0\le u<1,~~0\le v<1\\
+  0 & \mbox{otherwise}
+  \end{array}\right.
+  \]
+  Then Eq. (\ref{eq:interpolation1}) is the same as just truncating $u$
+  and $v$ to the next-lower integer, and outputting that number:
+  \[
+  I(v,u) = I\left[\lfloor v\rfloor,\lfloor u\rfloor\right]
+  \]
+  where $\lfloor u\rfloor$ means ``the largest integer smaller than $u$''.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Original Image}
+  For example, let's downsample this image, and then try to recover it by image interpolation:
+  \centerline{\includegraphics[width=4.5in]{exp/original.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Downsampled Image}
+  Here's the downsampled image:
+  \centerline{\includegraphics[width=4.5in]{exp/downsampled.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Upsampled Image} Here it is after we upsample
+  it back to the original resolution (insert 3 zeros between every
+  pair of nonzero columns):
+  \centerline{\includegraphics[width=4.5in]{exp/upsample.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: PWC Interpolation}
+
+  Here is the piece-wise constant interpolated image:
+  \centerline{\includegraphics[width=4.5in]{exp/pwc.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Bi-Linear Interpolation}
+  \[
+  I(v,u) = \sum_m\sum_n I[n,m] h(v-n,u-m)
+  \]
+  For example, suppose
+  \[
+  h(v,u) = \max\left(0,(1-|u|)(1-|v|)\right)
+  \]
+  Then Eq. (\ref{eq:interpolation1}) is the same as piece-wise linear
+  interpolation among the four nearest pixels.  This is called {\bf
+    bilinear interpolation} because it's linear in two directions.
+  \begin{align*}
+    m &= \lfloor u\rfloor,~~~e=u-m\\
+    n &= \lfloor v\rfloor,~~~f=v-m\\
+    I(v,u) &= (1-e)(1-f)I[n,m]+(1-e)fI[n,m+1]\\
+    &+e(1-f)I[n+1,m]+efI[n+1,m+1]
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Upsampled Image}
+
+  Here's the upsampled image again:
+  \centerline{\includegraphics[width=4.5in]{exp/upsample.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Bilinear Interpolation}
+
+  Here it is after bilinear interpolation:
+  \centerline{\includegraphics[width=4.5in]{exp/pwl.png}}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{PWC and PWL Interpolator Kernels}
+
+  Bilinear interpolation uses a PWL interpolation kernel, which does
+  not have the abrupt discontiuity of the PWC interpolator kernel.
+  \centerline{\includegraphics[width=4.5in]{exp/interpolators.png}}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Sinc Interpolation}
+  \[
+  I(v,u) = \sum_m\sum_n I[n,m] h(v-n,u-m)
+  \]
+  For example, suppose
+  \[
+  h(v,u) = \mbox{sinc}(\pi u)\mbox{sinc}(\pi v)
+  \]
+  Then Eq. (\ref{eq:interpolation1}) is an ideal band-limited sinc interpolation.
+  It guarantees that the continuous-space image, $I(v,u)$, is exactly a band-limited
+  D/A reconstruction of the digital image $I[n,m]$.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Sinc Interpolation}
+
+  Here is the cat after sinc interpolation:
+  \centerline{\includegraphics[width=4.5in]{exp/sincinterp.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Original, Upsampled, and Sinc-Interpolated Spectra}
+
+  Here are the magnitude Fourier transforms of the original,
+  upsampled, and sinc-interpolated cat.
+  
+  \centerline{\includegraphics[width=4.5in]{exp/downsampled_spectra.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Original, Upsampled, and Sinc-Interpolated Spectra}
+
+  Here are the magnitude Fourier transforms of the original,
+  upsampled, and sinc-interpolated cat.
+
+  \centerline{
+    \begin{tikzpicture}
+      \node[inner sep=0pt](spectra) at (0,1.5) {
+        \includegraphics[height=5cm]{exp/downsampled_spectra.png}};
+      \node[inner sep=0pt](orig) at (4.5,2.8) {
+        \includegraphics[height=1.5cm]{exp/original.png}};
+      \node[inner sep=0pt](up) at (4.5,1.5) {
+        \includegraphics[height=1.5cm]{exp/upsample.png}};
+      \node[inner sep=0pt](sinc)  at (4.5,0.2) {
+        \includegraphics[height=1.5cm]{exp/sincinterp.png}};
+  \end{tikzpicture}}
+  \vspace*{-0.5cm}
+  \begin{itemize}
+  \item The zeros in the upsampled cat correspond to aliasing in its spectrum.
+  \item The ringing in the sinc-interpolated cat corresponds to the
+    sharp cutoff, at pi/4, of its spectrum.
+  \end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Conclusions}
+\setcounter{subsection}{1}
+\begin{frame}
+  \frametitle{Conclusions}
+  \begin{itemize}
+  \item You can generate an output image $J[y,x]$ by warping an input image $I(v,u)$.
+  \item If $(v,u)$ are not integers, you can compute the value of $I(v,u)$ by interpolating
+    among $I[n,m]$, where $[n,m]$ are integers.
+    \[
+    I(v,u) = \sum_m\sum_n I[n,m] h(v-n,u-m)
+    \]
+  \item Shift, scale, rotation and shear are affine transformations, given by
+  \[
+  \left[\begin{array}{c} u\\v\\1\end{array}\right]=
+  \left[\begin{array}{ccc}a&b&c\\d&e&f\\0&0&1\end{array}\right]
+  \left[\begin{array}{c}x\\y\\1\end{array}\right]
+  \]
+  \end{itemize}
+\end{frame}
+\end{document}
+

@@ -15,9 +15,8 @@
   \end{frame}
 }
 \title{Recurrent Neural Nets}
-\author{ECE 417: Multimedia Signal Processing\\
-Mark Hasegawa-Johnson}
-\institute{University of Illinois}
+\author{Mark Hasegawa-Johnson\\All content~\href{https://creativecommons.org/licenses/by-sa/4.0/}{CC-SA 4.0} unless otherwise specified.}
+\date{ECE 417: Multimedia Signal Processing, Fall 2020}  
 \titlegraphic{\includegraphics{../../../17fall/lectures/imark_1867_bold.png}}
 \begin{document}
 
@@ -482,7 +481,7 @@ Mark Hasegawa-Johnson}
     \delta[n]&=\frac{dE}{de[n]}\\
     &=\frac{\partial E}{\partial e[n]}+
     \sum_{m=1}^{\infty}\frac{dE}{de[n+m]}\frac{\partial e[n+m]}{\partial e[n]}\\
-    &=\epsilon[n]+\sum_{m=1}^{M-1}\delta[n+m]\dot{g}(e[n+m])w[m]
+    &=\epsilon[n]+\sum_{m=1}^{M-1}\delta[n+m]w[m]\dot{g}(e[n])
   \end{align*}
 \end{frame}
   
@@ -491,19 +490,20 @@ Mark Hasegawa-Johnson}
 \setcounter{subsection}{1}
 
 \begin{frame}
+  \frametitle{Conclusions}
   \begin{itemize}
   \item Back-Prop, in general, is just the chain rule of calculus:
     \begin{displaymath}
       \frac{dE}{dw} = \sum_{i=0}^{N-1}\frac{dE}{dh_i}\frac{\partial h_i}{\partial w}
     \end{displaymath}
-  \item TDNN is a one-dimensional ConvNet, the nonlinear version of an FIR filter.
+  \item Convolutional Neural Networks are the nonlinear version of an FIR filter.
     Coefficients are shared across time steps.
-  \item RNN is the nonlinear version of an IIR filter.  
+  \item Recurrent Neural Networks are the nonlinear version of an IIR filter.  
     Coefficients are shared across time steps.
     Error is back-propagated from every output time step to every input time step.
     \begin{displaymath}
       \delta[n]=\frac{dE}{de[n]}=\frac{\partial E}{\partial e[n]}+
-      \sum_{m=1}^{M-1}\delta[n+m]\dot{g}(e[n+m])w[m]
+      \sum_{m=1}^{M-1}\delta[n+m]w[m]\dot{g}(e[n])
     \end{displaymath}
     \[
     \frac{dE}{dw[m]} = \sum_n \delta[n] \hat{y}[n-m]
