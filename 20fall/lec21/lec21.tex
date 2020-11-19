@@ -14,7 +14,7 @@
     \tableofcontents[currentsection,currentsubsection]
   \end{frame}
 }
-\title{Lecture 21: Barycentric Coordinates}
+\title{Lecture 21: Barycentric Coordinates and Deep Voxel Flow}
 \author{Mark Hasegawa-Johnson\\All content~\href{https://creativecommons.org/licenses/by-sa/4.0/}{CC-SA 4.0} unless otherwise specified.}
 \date{ECE 417: Multimedia Signal Processing, Fall 2020}  
 \institute{University of Illinois}
@@ -48,7 +48,7 @@
 \begin{frame}
   \frametitle{How it is done}
     \begin{align*}
-      \mbox{lip\_height,width} &= \mbox{NeuralNet}\left(\mbox{MFCC}\right)\\
+      \mbox{lip\_height,width} &= \mbox{NeuralNet}\left(\mbox{audio features}\right)\\
       \mbox{out\_triangs} &= \mbox{LinearlyInterpolate}\left(\mbox{inp\_triangs,lip\_height,width}\right)\\
       \mbox{inp\_coord} &= \mbox{BaryCentric}\left(\mbox{out\_coord,inp\_triangs,out\_triangs}\right)\\
       \mbox{out\_image} &= \mbox{BilinearInterpolate}\left(\mbox{inp\_coord,inp\_image}\right)
@@ -177,9 +177,8 @@
   \frametitle{How to find Barycentric Coordinates}
   But how do you find $\lambda_1$, $\lambda_2$, and $\lambda_3$?
   \[
-  \vec{x}=\lambda_1\vec{x}_1+\lambda_2\vec{x}_2+\lambda_3\vec{x}_3
-  =\left[\vec{x}_1,\vec{x}_2,\vec{x}_3\right]
-  \left[\begin{array}{c}\lambda_1\\\lambda_2\\\lambda_3\end{array}\right]
+  \left[\begin{array}{c}x\\y\\1\end{array}\right]=
+  \lambda_1\vec{x}_1+\lambda_2\vec{x}_2+\lambda_3\vec{x}_3
   =\left[\begin{array}{ccc}x_1&x_2&x_3\\y_1&y_2&y_3\\1&1&1\end{array}\right]
   \left[\begin{array}{c}\lambda_1\\\lambda_2\\\lambda_3\end{array}\right]
   \]
@@ -236,13 +235,121 @@
   \end{itemize}
 \end{frame}
 
+\begin{frame}
+  \frametitle{How to Make a Talking Head}
+  \centerline{\includegraphics[height=0.75in]{mp7_image_warping_points.jpg}\includegraphics[height=0.75in]{mp7_image_warped.jpg}}
+  \begin{align*}
+    \mbox{lip\_height,width} &= \mbox{NeuralNet}\left(\mbox{audio features}\right)\\
+    \mbox{out\_triangs} &= \mbox{LinearlyInterpolate}\left(\mbox{inp\_triangs,lip\_height,width}\right)\\
+    \mbox{inp\_coord} &= \mbox{BaryCentric}\left(\mbox{out\_coord,inp\_triangs,out\_triangs}\right)\\
+    \mbox{out\_image} &= \mbox{BilinearInterpolate}\left(\mbox{inp\_coord,inp\_image}\right)
+  \end{align*}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Deep Voxel Flow}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{\href{https://openaccess.thecvf.com/content_ICCV_2017/papers/Liu_Video_Frame_Synthesis_ICCV_2017_paper.pdf}{Video Frame Synthesis Using Deep Voxel Flow}\\\begin{small}Liu et al., ICCV 2017\end{small}}
+  \centerline{\includegraphics[width=4.5in]{figs/liu17iccv4a.png}}
+  \begin{small}Image (c) ICCV and the authors\end{small}
+\end{frame}
+
+\begin{frame}
+  \frametitle{\href{https://openaccess.thecvf.com/content_ICCV_2017/papers/Liu_Video_Frame_Synthesis_ICCV_2017_paper.pdf}{Video Frame Synthesis Using Deep Voxel Flow}\\\begin{small}Liu et al., ICCV 2017\end{small}}
+
+  \begin{itemize}
+  \item Objective: Given video frames at times $0$ and $1$, generate
+    missing frame at time $t\in(0,1)$.
+  \item Voxel Flow: Generated frame is made by copying pixels from frames $0$ and $1$, with
+    some shift in position, $(\Delta x,\Delta y)$.
+  \item The coordinate shift $(\Delta x,\Delta y)$ is (almost) a {\bf piece-wise affine} function
+    of $(x,y)$, so it is (almost) equivalent to a  mapping based on Barycentric coordinates---but
+    without ever explicitly choosing the triangle locations.
+  \item When $(x-\Delta x,y-\Delta y)$  are non-integer, the input pixels are
+    constructed using {\bf bilinear interpolation}.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Voxel Flow}
+
+  The generated frame, $\mathbf{\hat{Y}}(y,x,t)$, is generated as a
+  linear convex interpolation between selected pixels of the two
+  reference images, $\mathbf{X}(y,x,0)$ and $\mathbf{X}(y,x,1)$:
+  \begin{displaymath}
+    \mathbf{\hat{Y}}(y,x,t)=
+    \left(1-\Delta t\right)\mathbf{X}\left(y-\Delta y,x-\Delta x,0\right)+
+    \Delta t\mathbf{X}\left(y+\Delta y,x+\Delta x,1\right)
+  \end{displaymath}
+  where $\Delta t\in(0,1)$.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Piece-Wise (Nearly) Affine}
+
+  The voxel flow field is generated as
+  \begin{displaymath}
+    \mathbf{F}=(\Delta x,\Delta y,\Delta t)={\mathcal H}\left(\mathbf{X};\theta\right)
+  \end{displaymath}
+  where ${\mathcal H}\left(\mathbf{X};\theta\right)$ uses:
+  \begin{itemize}
+  \item A series of CNN layers with ReLU nonlinearity, to compute a
+    piece-wise affine function of $\mathbf{X}$, then
+  \item A final layer with a $\tanh$ nonlinearity, squashing the output
+    to the range $\Delta x\in\left(-1,1\right)$,
+    $\Delta y\in\left(-1,1\right)$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Piece-Wise (Nearly) Affine}
+
+  \centerline{\includegraphics[width=4.5in]{figs/liu17iccv1.png}}
+  \begin{small}Image (c) ICCV and the authors\end{small}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Bilinear Interpolation}
+
+  The reference pixels, $\left(y-\Delta y,x-\Delta x\right)$ and
+  $\left(y+\Delta y,x+\Delta x\right)$, are usually not integers, so
+  they are constructed using bilinear interpolation:
+  \begin{displaymath}
+    \mathbf{\hat{Y}}(y,x,t) =
+    \sum_{i,j,k\in\left\{0,1\right\}}\mathbf{W}^{ijk}\mathbf{X}(\mathbf{V}^{ijk}),
+  \end{displaymath}
+  where:
+  \begin{align*}
+    \mathbf{V}^{000}&=\left(\lfloor x-\Delta x\rfloor,\lfloor y-\Delta y\rfloor,0\right)\\
+    \mathbf{V}^{100}&=\left(\lceil x-\Delta x\rceil,\lfloor y-\Delta y\rfloor,0\right)\\
+    &\vdots\\
+    \mathbf{V}^{111}&=\left(\lceil x+\Delta x\rceil,\lceil y+\Delta y\rceil,1\right)
+  \end{align*}
+  and the weights $\mathbf{W}^{ijk}$ are constructed according to bilinear interpolation.
+\end{frame}
+    
+\begin{frame}
+  \frametitle{Differentiable}
+
+  Because bilinear interpolation is a piece-wise linear function of
+  $\Delta x$ and $\Delta y$, the error can be differentiated
+  w.r.t. those parameters.  From the original paper:
+  \centerline{\includegraphics[height=2in]{figs/liu17iccv7.png}}
+\end{frame}
+    
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}
 \setcounter{subsection}{1}
 
 \begin{frame}
-  \centerline{\includegraphics[height=1in]{mp7_image_warping_points.jpg}\includegraphics[height=1in]{mp7_image_warped.jpg}}
+  \frametitle{How to Make a Talking Head}
+  \centerline{\includegraphics[height=0.75in]{mp7_image_warping_points.jpg}\includegraphics[height=0.75in]{mp7_image_warped.jpg}}
   \begin{align*}
-    \mbox{lip\_height,width} &= \mbox{NeuralNet}\left(\mbox{MFCC}\right)\\
+    \mbox{lip\_height,width} &= \mbox{NeuralNet}\left(\mbox{audio features}\right)\\
     \mbox{out\_triangs} &= \mbox{LinearlyInterpolate}\left(\mbox{inp\_triangs,lip\_height,width}\right)\\
     \mbox{inp\_coord} &= \mbox{BaryCentric}\left(\mbox{out\_coord,inp\_triangs,out\_triangs}\right)\\
     \mbox{out\_image} &= \mbox{BilinearInterpolate}\left(\mbox{inp\_coord,inp\_image}\right)
@@ -265,6 +372,12 @@
   \end{itemize}
 \end{frame}
 
+\begin{frame}
+  \frametitle{Deep Voxel Flow: PWL$\Rightarrow$End-to-end differentiable}
+
+  \centerline{\includegraphics[width=4.5in]{figs/liu17iccv1.png}}
+  \begin{small}Image (c) ICCV and the authors\end{small}
+\end{frame}
 
 \end{document}
 
