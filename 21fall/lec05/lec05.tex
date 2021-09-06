@@ -1,0 +1,515 @@
+\documentclass{beamer}
+\usepackage{tikz,amsmath,hyperref,graphicx,stackrel}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc,dsp,chains}
+\newcommand{\argmax}{\operatornamewithlimits{argmax}}
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\mode<presentation>{\usetheme{Frankfurt}}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 5: Multidimensional Signal Processing}
+\author{Mark Hasegawa-Johnson}
+\date{ECE 417: Multimedia Signal Processing, Fall 2021}  
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+\begin{frame}
+Reading: \href{https://www.google.com/books/edition/Multidimensional_Signal_Image_and_Video/0lJ0atc5X-UC?hl=en&gbpv=1&dq=multidimensional+signal+processing+tutorial&pg=PP1&printsec=frontcover}{\color{blue}Multidimensional Signal, Image, and Video Processing and Coding}, John Woods, Chapter 1
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Signals]{Multidimensional Signals}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{What is a Multidimensional Signal?}
+
+  A multidimensional signal is one that can be indexed in many
+  directions.  For example, a typical video that you would play on
+  your laptop is a 4-dimensional signal, $x[k,t,r,c]$:
+  \begin{itemize}
+  \item $k$ indexes color ($k=0$ for red, $k=1$ for blue, $k=2$ for green)
+  \item $t$ is the frame index
+  \item $r$ is the row index
+  \item $c$ is the column index
+  \end{itemize}
+  If there are 3 colors, 30 frames/second, 480 rows and 640 columns,
+  with one byte per pixel, then that's $3\times 30\times 480\times
+  640=27684000$ bytes/sec.
+\end{frame}
+  
+\begin{frame}
+  \frametitle{Generic Indexing of Multidimensional Signals}
+
+  When we don't care about the meaning of the indices, we'll often
+  talk about $x[n_1,n_2]$, where
+  \begin{itemize}
+  \item $n_1$ is the index along the first dimension
+  \item $n_2$ is the index along the second dimension
+  \item Anything we say about two dimensions can usually be extended
+    to 3 or 4 dimensions, unless specified otherwise
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Vector Indexing of Multidimensional Signals}
+
+  For convenience, we'll sometimes use a vector index.
+  \[
+  x[\vec{n}] = x[n_1,n_2],~~~\vec{n}=\left[\begin{array}{c}n_1\\n_2\end{array}\right]
+  \]
+  The use of vector indices is a way of abstracting away from the
+  exact dimension of the problem.  In general, $\vec{n}$ might be 2d,
+  3d, 4d, or whatever dimension is necessary for the problem at hand.
+\end{frame}
+
+\begin{frame}
+  \frametitle{2D Delta Function}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \begin{block}{}
+        Example: the two-dimensional delta function is
+        \[
+        \delta[n_1,n_2] = \begin{cases}
+          1 & n_1=0,n_2=0\\
+          0 & \mbox{otherwise}
+        \end{cases}
+        \]
+      \end{block}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{block}{}
+        \begin{center}
+          \includegraphics[width=\textwidth]{exp/delta.png}
+        \end{center}
+      \end{block}
+      \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}
+  Example: this signal, $f[n_1,n_2]$, is an image of Joseph Fourier,
+  simplified from a public domain image available on
+  \href{https://en.wikipedia.org/wiki/Joseph_Fourier}{\color{blue}Wikipedia}.
+  Here, $n_1$ is the row index, $n_2$ is the column index.
+
+  Notice that, as in most images, white is the highest possible
+  amplitude.  Thus the background regions (in the image on the left)
+  show up as very high amplitude regions (in the 3D mesh plot on the
+  right).
+  
+  \centerline{\includegraphics[height=0.5\textheight]{exp/fourier.jpg}\includegraphics[height=0.5\textheight]{exp/fourier_2dmesh.png}}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Fourier]{Fourier Transform}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Multidimensional Fourier Transform}
+
+  The 2d Fourier transform is
+  \begin{displaymath}
+    X(\omega_1,\omega_2) = \sum_{n_1}\sum_{n_2}
+    x[n_1,n_2]e^{-j\left(\omega_1n_1+\omega_2n_2\right)}
+  \end{displaymath}
+  Vector indexing of the image can be matched by vector indexing of
+  the frequency domain, e.g.,
+  $\vec\omega=[\omega_1,\omega_2]^T$.  In that case,
+  \begin{displaymath}
+    X(\vec\omega) = \sum_{\vec{n}}
+    x[\vec{n}]e^{-j\vec\omega^T\vec{n}}
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Fourier Transformed}
+  
+  For example, here is the magnitude $|F(\omega_1,\omega_2)|$ of the
+  2D Fourier transform of the image of Joseph Fourier.  Notice that,
+  like most images, it has almost all of its energy at very low
+  frequencies (near $\omega_1\approx 0, \omega_2\approx 0$).
+
+  \centerline{\includegraphics[width=0.5\textwidth]{exp/fourier_transformed_image.png}\includegraphics[width=0.5\textwidth]{exp/fourier_transformed.png}}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Systems]{Multidimensional Systems}
+\setcounter{subsection}{1}
+
+
+\begin{frame}
+  \frametitle{Multidimensional Systems}
+  
+  A multidimensional system $y[\vec{n}]=T\left\{x[\vec{n}]\right\}$
+  takes in a signal $x[\vec{n}]$, and outputs a signal $y[\vec{n}]$.
+  
+  \centerline{
+    \begin{tikzpicture}
+      \node[dspnodeopen,dsp/label=left] (x) at (0,0) {$x[\vec{n}]$};
+      \node[dspsquare] (T) at (2,0) {$T\left\{\cdot\right\}$} edge[dspline](x);
+      \node[dspnodeopen,dsp/label=right] (y) at (4,0) {$y[\vec{n}]$} edge[dspline](T);
+  \end{tikzpicture}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Linear Systems}
+
+  A system is {\bf linear} iff, when you add two signals at the input,
+  the corresponding output is the sum of their two component outputs.  Thus, if:
+  \begin{align*}
+    T\left\{x_1[\vec{n}]\right\} & = y_1[\vec{n}]\\
+    T\left\{x_2[\vec{n}]\right\} & = y_2[\vec{n}]
+  \end{align*}
+  then $T\left\{\cdot\right\}$ is linear if and only if:
+  \begin{align*}
+    T\left\{x_1[\vec{n}]+x_2[\vec{n}]\right\} &= y_1[\vec{n}]+y_2[\vec{n}]
+  \end{align*}
+  As a special case of the above, scaling the input by any constant
+  $a$ causes the output to scale by the same constant, i.e.,
+  $T\left\{a x[\vec{n}]\right\} = ay[\vec{n}]$.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Shift-Invariant Systems}
+
+  A system is {\bf shift-invariant} iff, when you shift the input
+  signal by any offset, the corresponding output is shifted by the
+  same offset vector.  Thus if
+  \begin{displaymath}
+    T\left\{x[n_1,n_2]\right\} = y[n_1,n_2]
+  \end{displaymath}
+  then $T\left\{\cdot\right\}$ is shift-invariant if and only if:
+  \begin{displaymath}
+    T\left\{x[n_1-m_1,n_2-m_2]\right\} = y[n_1-m_1,n_2-m_2]
+  \end{displaymath}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Convolution]{Convolution}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Multidimensional Convolution}
+
+  Any linear, shift-invariant system can be implemented as a
+  convolution.  2D convolution is defined as
+  \begin{align*}
+    y[n_1,n_2] &= x[n_1,n_2]\ast h[n_1,n_2]\\
+    &= \sum_{m_1=-\infty}^\infty\sum_{m_2=-\infty}^\infty x[m_1,m_2]h[n_1-m_1,n_2-m_2]
+  \end{align*}
+  We can generalize to vector indices like this:  
+  \begin{align*}
+    y[\vec{n}] &= x[\vec{n}]\ast h[\vec{n}]\\
+    &=\sum_{\vec{m}} x[\vec{m}]h[\vec{n}-\vec{m}]
+  \end{align*}
+  Notice that this is expensive!  If both $x[\vec{n}]$ and
+  $h[\vec{n}]$ are $100\times 100$ signals, then the convolution
+  requires $(100)^4$ multiplications.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Impulse Response}
+
+  The function $h[n_1,n_2]$ has many names.  We sometimes call it the
+  {\bf filter} or {\bf kernel}.  We also call it the {\bf impulse
+    response} or {\bf point spread function} (PSF) because it is the
+  response of the system to an input impulse:
+
+  \begin{align*}
+    \delta[n_1,n_2]\ast h[n_1,n_2] &=
+    \sum_{m_1=-\infty}^\infty\sum_{m_2=-\infty}^\infty \delta[m_1,m_2]h[n_1-m_1,n_2-m_2] \\
+    & = h[n_1,n_2]
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Gaussian Blur}
+  For example, consider the impulse response shown below.  This
+  is a Gaussian blur kernel of size $(2M+1)\times(2M+1)$, with variance
+  $\sigma^2=1.5$, meaning that
+  \begin{displaymath}
+    h[n_1,n_2] = \begin{cases}
+      \frac{1}{2\pi\sigma^2}e^{-\left(\frac{n_1^2+n_2^2}{2\sigma^2}\right)} & -M\le n_1,n_2\le M\\
+      0 & \mbox{otherwise}
+    \end{cases}
+  \end{displaymath}
+  \centerline{\includegraphics[height=0.5\textheight]{exp/gauss_2d.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Gaussian Blur}
+
+  Filtering an image through any lowpass filter results in a smoothed
+  version of the same image.  Here's what we get when we convolve the
+  image of Fourier with the Gaussian blur filter:
+
+  \centerline{\includegraphics[height=0.45\textheight]{exp/fourier.jpg}$\rightarrow$\includegraphics[height=0.55\textheight]{exp/fourier_smoothed.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Frequency Response}
+
+  The frequency response of an LSI system is the Fourier transform of
+  its impulse response:
+  \[
+  H(\vec\omega) = \sum_{\vec{n}} h[\vec{n}] e^{-j\vec\omega^T\vec{n}}
+  \]
+  The Fourier transform of convoluton is multiplication:
+  \[
+  y[\vec{n}]=x[\vec{n}]\ast h[\vec{n}] \Leftrightarrow Y(\vec\omega)=H(\vec\omega)X(\vec\omega)
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Gaussian Blur}
+
+  A Gaussian blur kernel is a lowpass-filter, meaning that it has
+  higher energy at low frequencies than at high frequencies.  Here is
+  the Gaussian kernel, and its Fourier transform.
+
+  \centerline{\includegraphics[height=0.6\textheight]{exp/gauss_2d.png}$\Leftrightarrow$
+    \includegraphics[height=0.6\textheight]{exp/gauss_transformed.png}}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Separable Filtering}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Computational Complexity of Regular Convolution}
+
+  Recall the formula for regular convolution:
+  \begin{align*}
+    y[n_1,n_2] &= x[n_1,n_2]\ast h[n_1,n_2]\\
+    &= \sum_{m_1=-\infty}^\infty\sum_{m_2=-\infty}^\infty x[m_1,m_2]h[n_1-m_1,n_2-m_2]
+  \end{align*}
+  This is an extremely expensive operation.  If $h[\vec{n}]$ and
+  $x[\vec{n}]$ are both $N\times N$ signals, then convolution requires
+  $N^4$ multiplications.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Reduced Computation}
+
+  There are two ways computation can be reduced:
+  \begin{itemize}
+    \item Keep the kernel $h[\vec{n}]$ very small.  This is the method
+      usually used in neural nets, e.g., a $3\times 3$ kernel is common.
+    \item Use separable convolution.  This is the method usually used
+      for filters that are designed by hand.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Separable Filters}
+  A filter $h[n_1,n_2]$ is called ``separable'' if it can be written as
+  \[
+  h[n_1,n_2] = h_1[n_1]h_2[n_2]
+  \]
+  Not all filters are separable.  For example, the diamond window
+  shown below is not separable.
+  \centerline{\includegraphics[height=0.5\textheight]{exp/diamond_image.png}\includegraphics[height=0.5\textheight]{exp/diamond.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Gaussian Blur}
+
+  An important example of a separable filter is the Gaussian blur
+  filter, with variance $\sigma^2$:
+  \begin{align*}
+    h[n_1,n_2] &= \frac{1}{2\pi\sigma^2}e^{-\left(\frac{n_1^2+n_2^2}{2\sigma^2}\right)},~~~ -M\le n_1,n_2\le M\\
+    &= \left(\frac{1}{\sqrt{2\pi\sigma^2}}e^{-\frac{n_1^2}{2\sigma^2}}\right)
+    \left(\frac{1}{\sqrt{2\pi\sigma^2}}e^{-\frac{n_2^2}{2\sigma^2}}\right),~~~-M\le n_1,n_2\le M\\
+    &= h_1[n_1]h_2[n_2]
+  \end{align*}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{Example: Gaussian Blur}
+  \begin{columns}
+  \begin{column}{0.5\textwidth}
+    This 2D filter:
+    \begin{center}
+      \includegraphics[width=\textwidth]{exp/gauss_2d.png}
+    \end{center}
+  \end{column}
+  \begin{column}{0.5\textwidth}
+    \ldots is the product of two 1D filters, each with this form:
+    \begin{center}
+      \includegraphics[width=\textwidth]{exp/gauss_1d.png}
+    \end{center}
+  \end{column}
+  \end{columns}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Separable Convolution}
+
+  If a filter is separable, then the computational cost of convolution can be reduced
+  by the following trick:
+  
+  \begin{align*}
+    y[n_1,n_2] &= x[n_1,n_2]\ast h[n_1,n_2]\\
+    &= \sum_{m_1=-\infty}^\infty\sum_{m_2=-\infty}^\infty h[m_1,m_2]x[n_1-m_1,n_2-m_2]\\
+    &= \sum_{m_1=-\infty}^\infty h_1[m_1]\left(\sum_{m_2=-\infty}^\infty h_2[m_2]x[n_1-m_1,n_2-m_2]\right)\\
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Separable Convolution: Computational Complexity}
+  
+  \begin{align*}
+    x[\vec{n}]\ast h[\vec{n}] &=
+    \sum_{m_1=-\infty}^\infty h_1[m_1]\left(\sum_{m_2=-\infty}^\infty h_2[m_2]x[n_1-m_1,n_2-m_2]\right)\\
+  \end{align*}
+  
+  \begin{itemize}
+    \item The part inside the parentheses computes a 1D convolution,
+      which is an $N^2$ operation, for each of the $N$ rows.  Cost:
+      $N^3$.
+    \item The part outside the parentheses then computes a 1D
+      convolution for each of the $N$ columns.  Cost: $N^3$.
+    \item Total cost: $2N^3$ computations.
+  \end{itemize}
+  If $N$ is large (e.g., 1000), then often, $2N^3$ is a quite
+  reasonable number (e.g., two billion computations), while $N^4$ is
+  quite unreasonable (e.g., a trillion).
+\end{frame}
+
+\begin{frame}
+  \frametitle{Separable Convolution: Notation}
+
+  It is sometimes useful to have a special notation for separable
+  convolution.  For example, we could define the {\bf row convolution}
+  operator $\ast_2$, and the {\bf column convolution} operator $\ast_1$:
+  \begin{align*}
+    h_2[n_2] \ast_2 x[n_1,n_2] &\equiv \sum_{m_2=-\infty}^\infty h_2[m_2]x[n_1, n_2-m_2]\\
+    h_1[n_1] \ast_1 x[n_1,n_2] &\equiv \sum_{m_1=-\infty}^\infty h_1[m_1]x[n_1-m_1, n_2]
+  \end{align*}
+  Then:
+  \begin{align*}
+    x[n_1,n_2]\ast h[n_1,n_2]
+    &= h_1[n_1] \ast_1 h_2[n_2]\ast_2 x[n_1,n_2]
+  \end{align*}
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{Separable Convolution: How to Do It}
+
+  Using \texttt{numpy}, you will almost always want to use separable
+  convolutions.  To do that, you need to define some variable
+  $v[\vec{n}]$ which is intermediate between $x[\vec{n}]$ and
+  $y[\vec{n}]$.  Then you do the following:
+  \begin{itemize}
+  \item Compute $v[\vec{n}]=h_2[n_2]\ast_2 x[\vec{n}]$, i.e., convolve
+    $h_2$ with each of the rows of the image.
+  \item Compute $y[\vec{n}]=h_1[n_1]\ast_1 v[\vec{n}]$, i.e., convolve
+    $h_1$ with each of the columns of the image.
+  \end{itemize}
+  In fact, that's how I computed the Gaussian-blurred image of Fourier.
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Other facts about separable filters}
+
+  \begin{itemize}
+  \item The Fourier transform is a separable operation, so it can be
+    done most efficiently by first transforming each row, then
+    transforming each column.  This is what \texttt{np.fft.fft2} does for
+    you.
+    \[
+    X(\omega_1,\omega_2) = \sum_{n_1} e^{-j\omega_1 n_1}\left(\sum_{n_2} e^{-j\omega_2 n_2} x[n_1,n_2]\right)
+    \]
+  \item If a filter is separable, then its Fourier transform is also separable:
+    \[
+    h[n_1,n_2]=h_1[n_1]h_2[n_2] \Leftrightarrow
+    H(\omega_1,\omega_2)=H_1(\omega_1)H_2(\omega_2)
+    \]
+  \end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Examples}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Pencil and Paper Examples}
+
+  Consider the $M\times M$ rectangular window signal:
+  \begin{displaymath}
+    h[n_1,n_2] = \begin{cases}
+      1 & 0\le n_1,n_2 \le M-1\\
+      0 & \mbox{otherwise}
+    \end{cases}
+  \end{displaymath}
+  Is this a separable filter?  Is it a lowpass or a highpass filter?
+  Write $x[\vec{n}]\ast h[\vec{n}]$ --- what is another name for the
+  output of this filter?
+  What is the frequency response $H(\vec\omega)$?
+\end{frame}
+
+\begin{frame}
+  \frametitle{Jupyter Examples}
+
+  Create a rectangular window with this form:
+  \begin{displaymath}
+    h[n_1,n_2] = \begin{cases}
+      1 & 0\le n_1,n_2 \le M-1\\
+      0 & \mbox{otherwise}
+    \end{cases}
+  \end{displaymath}
+  Convolve it with some image, and show the result.  Take its Fourier
+  transform using \texttt{np.fft.fft2} (making sure to zero-pad it to
+  a large $N$, maybe $N=7M$ or so), then fftshift it using
+  \texttt{np.fft.fftshift}, and show the absolute value of the result
+  using \texttt{matplotlib.pyplot.plot\_wireframe}.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Summary}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Summary}
+  \begin{itemize}
+  \item {\bf Fourier Transform:}
+    \[
+    H(\vec\omega) = \sum_{\vec{n}} h[\vec{n}] e^{-j\vec\omega^T\vec{n}}
+    \]
+  \item {\bf Convolution:}
+    \[
+    h[\vec{n}]\ast x[\vec{n}] = \sum_{\vec{m}} h[\vec{m}] x[\vec{n}-\vec{m}]
+    \]
+  \item {\bf Separable Filtering:}
+    If $h[n_1,n_2]=h_1[n_1]h_2[n_2]$, then
+    \[
+    h[\vec{n}]\ast x[\vec{n}] = h_1[n_1] \ast_1 \left(h_2[n_2]\ast_2 x[\vec{n}]\right)
+    \]
+  \end{itemize}
+\end{frame}
+
+
+\end{document}
+

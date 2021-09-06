@@ -1,0 +1,842 @@
+\documentclass{beamer}
+\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc,dsp,chains}
+\usepackage[tone,extra,safe]{tipa}
+\newcommand{\ipa}[1]{\textipa{#1}}
+\newcommand{\argmax}{\operatornamewithlimits{argmax}}
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\mode<presentation>{\usetheme{Frankfurt}}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 2: Linear Prediction}
+\author{Mark Hasegawa-Johnson}
+\date{ECE 417: Multimedia Signal Processing, Fall 2021}  
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Review]{Review: IIR Filters}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{IIR Filter}
+
+  Let's start with a general second-order IIR filter, which you would
+  implement in one line of python like this:
+  \begin{displaymath}
+    y[n] = x[n] + a_1y[n-1] + a_2y[n-2]
+  \end{displaymath}
+  By taking the Z-transform of both sides, and solving for $Y(z)$, you
+  get
+  \begin{displaymath}
+    H(z) = \frac{1}{1-a_1z^{-1}-a_2z^{-2}}=
+    \frac{1}{(1-p_1z^{-1})(1-p_1^*z^{-1})},
+  \end{displaymath}
+  where $p_1$ and $p_1^*$ are the roots of the polymomial
+  $z^2-a_1z-a_2$.  (For the rest of this lecture, we'll assume that
+  the polynomial has complex roots, because that's the hardest case).
+\end{frame}
+
+\begin{frame}
+  \frametitle{Frequency Response of an All-Pole Filter}
+
+  We get the magnitude response by just plugging in $z=e^{j\omega}$,
+  and taking absolute value:
+  \begin{displaymath}
+    |H(\omega)| = \lvert H(z)\rvert_{z=e^{j\omega}} = \frac{\lvert e^{2j\omega}\rvert}{\lvert e^{j\omega}-p_1\rvert\times\lvert e^{j\omega}-p_1^*\rvert}
+  \end{displaymath}
+  \centerline{\animategraphics[loop,controls,width=4.5in]{10}{exp/dampedfreq}{0}{49}}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Inverse Z]{Inverse Z Transform}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Inverse Z transform}
+
+  Suppose you know $H(z)$, and you want to find $h[n]$.  How can you
+  do that?
+\end{frame}
+      
+\begin{frame}
+  \frametitle{How to find the inverse Z transform}
+
+  Any IIR filter $H(z)$ can be written as\ldots
+  \begin{itemize}
+  \item a {\bf sum} of {\bf exponential} terms, each with this form:
+    \begin{displaymath}
+      G_\ell(z)=\frac{1}{1-az^{-1}}~~~\leftrightarrow~~~g_\ell[n]= a^nu[n],
+    \end{displaymath}
+  \item each possibly {\bf multiplied} by a {\bf delay} term, like this one:
+    \begin{displaymath}
+      D_k(z)=b_kz^{-k}~~~\leftrightarrow~~~d_k[n]=b_k\delta[n-k].
+    \end{displaymath}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{How to find the inverse Z transform}
+
+  Remember that multiplication in the frequency domain is convolution
+  in the time domain, so
+  \begin{align*}
+    b_kz^{-k}\frac{1}{1-az^{-1}}
+    &\leftrightarrow\left(b_k\delta[n-k]\right)\ast\left( a^nu[n]\right)\\
+    &= b_ka^{n-k}u[n-k]
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Step \#1: The Products}
+
+  So, for example,
+  \begin{displaymath}
+    H(z)=\frac{1+bz^{-1}}{1-az^{-1}}
+    =\left(\frac{1}{1-az^{-1}}\right)+bz^{-1}\left(\frac{1}{1-az^{-1}}\right)
+  \end{displaymath}
+  and therefore
+  \begin{displaymath}
+    h[n] = a^nu[n] + ba^{n-1}u[n-1]
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Step \#1: The Products}
+
+  So here is the inverse transform of $H(z)=\frac{1+0.5z^{-1}}{1-0.85z^{-1}}$:
+  \centerline{\includegraphics[width=4.5in]{exp/numsum.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Step \#1: The Products}
+
+  In general, if 
+  \begin{displaymath}
+    G(z) = \frac{1}{A(z)}
+  \end{displaymath}
+  for any polynomial $A(z)$, and
+  \begin{displaymath}
+    H(z) = \frac{\sum_{k=0}^M b_kz^{-k}}{A(z)}
+  \end{displaymath}
+  then
+  \begin{displaymath}
+    h[n] = b_0 g[n]+b_1g[n-1]+\cdots+b_M g[n-M]
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Step \#2: The Sum}
+
+  Now we need to figure out the inverse transform of
+  \begin{displaymath}
+    G(z) = \frac{1}{A(z)}
+  \end{displaymath}
+  You already know it for the first-order case ($A(z)=1-az^{-1}$).
+  What about for the general case?
+\end{frame}
+
+\begin{frame}
+  \frametitle{Step \#2: The Sum}
+  The method is this:
+  \begin{enumerate}
+  \item Factor $A(z)$:
+    \begin{displaymath}
+      G(z) = \frac{1}{\prod_{\ell=1}^N \left(1-p_\ell z^{-1}\right)}
+    \end{displaymath}
+  \item Assume that $G(z)$ is the sum of first-order fractions:
+    \begin{displaymath}
+      G(z) = \frac{C_1}{1-p_1z^{-1}} + \frac{C_2}{1-p_2z^{-1}} + \cdots
+    \end{displaymath}
+  \item Find the constants, $C_\ell$, that make the equation true.
+  \item \ldots and the inverse Z transform is
+    \[
+    g[n] = C_1 p_1^n u[n] + C_2 p_2^n u[n] + \cdots
+    \]
+  \end{enumerate}
+\end{frame}
+
+%\begin{frame}
+%  \frametitle{Example}
+%  Step \# 1:  Factor it:
+%  \begin{displaymath}
+%    \frac{1}{1-1.2z^{-1}+0.72z^{-2}}=
+%    \frac{1}{\left(1-(0.6+j0.6)z^{-1}\right)\left(1-(0.6-j0.6)z^{-1}\right)}
+%  \end{displaymath}
+%  Step \#2: Express it as a  sum:
+%  \begin{displaymath}
+%    \frac{1}{1-1.2z^{-1}+0.72z^{-2}}=
+%    \frac{C_1}{1-(0.6+j0.6)z^{-1}}+\frac{C_2}{1-(0.6-j0.6)z^{-1}}
+%  \end{displaymath}
+%  Step \#3: Find the constants.  The algebra is annoying, but it turns out that:
+%  \begin{displaymath}
+%    C_1=\frac{1}{2}-j\frac{1}{2},~~~
+%    C_2=\frac{1}{2}+j\frac{1}{2}
+%  \end{displaymath}
+%\end{frame}
+%
+%\begin{frame}
+%  \frametitle{Example: All Done!}
+%  The system function is:
+%  \begin{align*}
+%    G(z) &= \frac{1}{1-1.2z^{-1}+0.72z^{-2}}\\
+%    &=\frac{0.5-0.5j}{1-(0.6+j0.6)z^{-1}}+\frac{0.5+0.5j}{1-(0.6-j0.6)z^{-1}}
+%  \end{align*}
+%  and therefore the impulse response is:
+%  \begin{align*}
+%    g[n] &= (0.5-0.5j)(0.6+0.6j)^nu[n]+(0.5+0.5j)(0.6-j0.6)^nu[n]\\
+%    &= \left(0.5\sqrt{2}e^{-j\frac{\pi}{4}}\left(0.6\sqrt{2}e^{j\frac{\pi}{4}}\right)^n+
+%    0.5\sqrt{2}e^{j\frac{\pi}{4}}\left(0.6\sqrt{2}e^{-j\frac{\pi}{4}}\right)^n\right)u[n]\\
+%    &= \sqrt{2}(0.6\sqrt{2})^n \cos\left(\frac{\pi}{4}(n-1)\right)u[n]
+%  \end{align*}
+%\end{frame}
+%
+%\begin{frame}
+%  \centerline{\includegraphics[width=4.5in]{exp/densum.png}}
+%\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Second-Order]{Impulse Response of a Second-Order Filter}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{A General Second-Order IIR Filter}
+
+  Suppose we have a general second-order IIR filter:
+  \begin{align*}
+    y[n] &= x[n] + a_1y[n-1] +a_2 y[n-2]
+  \end{align*}
+  Its Z-transform is
+  \begin{align*}
+    Y(z) &= X(z) + a_1z^{-1}Y(z) +a_2z^{-2}Y(z)\\
+    &= \frac{1}{1-a_1z^{-1}-a_2z^{-2}} X(z)
+  \end{align*}
+  So, if $p_1$ and $p_1^*$ are the roots of the quadratic,
+  \[
+  H(z) = \frac{1}{1-a_1z^{-1}-a_2z^{-2}} = \frac{1}{(1-p_1z^{-1})(1-p_1^*z^{-1})}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Partial Fraction Expansion}
+
+  In order to find the impulse response, we do a partial fraction expansion:
+  \[
+  H(z) = \frac{1}{(1-p_1z^{-1})(1-p_1^*z^{-1})}= \frac{C_1}{1-p_1z^{-1}} + \frac{C_2}{1-p_1^*z^{-1}}
+  \]
+  When we multiply both sides by the denominator, we get:
+  \begin{displaymath}
+    1 = C_1(1-p_1^*z^{-1}) + C_2(1-p_1z^{-1})
+  \end{displaymath}
+  Notice that the above equation is actually two equations: $1=C_1+C_2$, and
+  $0=C_1p_1^*+C_2p_1$.  Solving those two equations, we get,
+  \begin{displaymath}
+    C_1 = \frac{p_1}{p_1-p_1^*},~~~
+    C_2 = \frac{p_1^*}{p_1^*-p_1}
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Impulse Response of a Second-Order IIR}
+
+  \ldots and so we just inverse transform.
+  \[
+  h[n] = C_1p_1^n u[n] + C_1^* (p_1^*)^n u[n]
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Causal Stable IIR Filter}
+
+  Let's assume that the filter is causal and stable, meaning that
+  $p_1$ is inside the unit circle, $p_1=e^{-\sigma_1+j\omega_1}$.
+
+  \centerline{\includegraphics[height=3in]{exp/dampedpoles.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Stable Resonator}
+
+  Remember that $p_1$ and $p_1^*$ are the zeros of a polynomial whose
+  coefficients are $a_1$ and $a_2$:
+  \begin{displaymath}
+    H(z) = \frac{1}{(1-p_1z^{-1})(1-p_1^*z^{-1})}= \frac{1}{1-a_1z^{-1}-a_2z^{-2}},
+  \end{displaymath}
+  so
+  \begin{align*}
+    a_1  &= 2e^{-\sigma_1}\cos\omega_1\\
+    a_2 &= -e^{-2\sigma_1}
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Impulse Response of a Causal Stable Filter}
+
+  To find the impulse response, we just need to find the constants in
+  the partial fraction expansion.  Those are
+  \begin{displaymath}
+    C_1 = \frac{p_1}{p_1-p_1^*}= \frac{p_1}{e^{-\sigma_1}\left(e^{j\omega_1}-e^{-j\omega_1}\right)}
+    = \frac{e^{j\omega_1}}{2j\sin(\omega_1)}
+  \end{displaymath}
+  and
+  \[
+  C_1^* = -\frac{e^{-j\omega_1}}{2j\sin(\omega_1)}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Impulse Response of a Second-Order IIR}
+
+  Plugging in to the impulse response, we get
+  \begin{align*}
+    h[n] &= C_1p_1^n u[n] + C_1^* (p_1^*)^n u[n]\\
+    &=\frac{1}{2j\sin(\omega_1)}
+    \left(e^{j\omega_1}e^{(-\sigma_1+j\omega_1)n}-e^{-j\omega_1}e^{(-\sigma_1-j\omega_1)n}\right)u[n]\\
+    &= \frac{1}{2j\sin(\omega_1)}e^{-\sigma_1n}\left(e^{j\omega_1(n+1)}-e^{-j\omega_1(n+1)}\right)u[n]\\
+    &= \frac{1}{\sin(\omega_1)} e^{-\sigma_1n}\sin(\omega_1(n+1)) u[n]
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Impulse Response of a Second-Order IIR}
+
+  \[
+  h[n] = 2|C_1| e^{-\sigma_1n}\sin(\omega_1(n+1)) u[n]
+  \]
+  \begin{itemize}
+  \item The constant is $2|C_1|=1/\sin\omega_1$.  It's just a scaling  constant,
+    it's not usually important to remember what it is.
+  \item The $e^{-\sigma_1 n}\sin(\omega_1 n)u[n]$ part is what's
+    called a ``damped sinusoid,'' meaning a sinusoid that decays exponentially fast
+    as a function of time.  That's really the most important  part of this equation.
+  \item The fact that it's $\sin(\omega_1(n+1))$ instead of $\sin(\omega_1 n)$ is
+    not really very important, but if you want, you can remember that it's necessary
+    because, at $n=0$, $\sin(\omega_1 n)=0$, but $\sin(\omega_1(n+1))\ne 0$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Impulse Response of a Second-Order IIR}
+  
+  \centerline{\animategraphics[loop,controls,height=3in]{10}{exp/dampedimpulse}{0}{49}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{A Damped Resonator is Stable}
+
+  A damped resonator is stable: any finite input will generate a
+  finite output.  
+  \begin{align*}
+    H(\omega) &= H(z)\vert_{z=e^{j\omega}} = \frac{1}{(1-e^{-\sigma_1+j(\omega_1-\omega)})(1-e^{-\sigma_1+j(-\omega_1-\omega)})}
+  \end{align*}
+  The highest peak of the frequency response occurs at $\omega\approx\pm\omega_1$,
+  where you get
+  \begin{align*}
+    H(\omega_1) &= \frac{1}{(1-e^{-\sigma_1})(1-e^{-\sigma_1-2j\omega_1})}\approx
+    \frac{1}{1-e^{-\sigma_1}}\approx \frac{1}{\sigma_1}
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \centerline{\animategraphics[loop,controls,width=4.5in]{10}{exp/dampedfreq}{0}{49}}
+\end{frame}
+
+%\begin{frame}
+%  \frametitle{Stability from the POV of the Impulse Response}
+%  From the point of view of the impulse response, you can think of stability like this:
+%  \[
+%  y[n] = \sum_m x[m]h[n-m]
+%  \]
+%  Suppose $x[m] = \cos(\omega_1 m)u[m]$.   Then
+%  \[
+%  y[n] = x[0]h[n] + x[1]h[n-1] + x[2]h[n-2] + \ldots
+%  \]
+%  We keep adding extra copies of $h[n-m]$, for each $m$, forever.
+%  However, since each $h[n-m]$ dies away, and since they are
+%  being added with a time delay between them, the result never builds
+%  all the way to infinity.
+%\end{frame}
+%
+%\begin{frame}
+%  \centerline{\animategraphics[loop,controls,height=3in]{10}{exp/dampedconv}{0}{49}}
+%\end{frame}
+  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Speech]{Speech}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Speech}
+
+  Voiced speech is made when your vocal folds snap shut, once every
+  5-10ms.  The snapping shut of the vocal folds causes a negative
+  spike in the air pressure just above the vocal folds, like this:
+  \begin{displaymath}
+    e[n] = G\delta[n-n_0]+G\delta[n-n_0-T_0]+G\delta[n-n_0-2T_0]+\cdots
+  \end{displaymath}
+  where $T_0$ is the pitch period (5-10ms), $n_0$ is the time
+  alignment of the first glottal pulse, $G$ is some large negative
+  number, and I'm using $e[n]$ to mean ``the speech excitation
+  signal.''
+\end{frame}
+
+\begin{frame}
+  \frametitle{Speech}
+
+  The speech signal echoes around inside your vocal tract for awhile,
+  before getting radiated out through your lips.  So we can model
+  speech as
+  \[
+  s[n] = e[n] + a_1s[n-1] + a_2s[n-2] + \cdots
+  \]
+  where $a_1,a_2,\ldots$ are the reflection coefficients inside the
+  vocal tract, and $s[n]$ is the speech signal.  In the frequency
+  domain, we have
+  \begin{displaymath}
+    S(z) = H(z) E(z) = \frac{1}{A(z)} E(z) = \frac{1}{1-\sum_m a_mz^{-1}} E(z)
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Speech: The Model}
+
+  Speech is made when we take a series of impulses, one every 5-10ms,
+  and filter them through a resonant cavity (like a bell).
+
+  \centerline{\includegraphics[width=4in]{exp/speech_fivepulses.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Speech: The Real Thing}
+  For example, here's a real speech waveform (the vowel \ipa{/o/}):
+  
+  \centerline{\includegraphics[width=4.5in]{exp/speechwave.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Speech: The Model}
+
+  Here's the model again, zoomed in on just one glottal pulse:
+  \centerline{\includegraphics[height=2.5in]{exp/speech_onepulse.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Inverse Filtering}
+
+  If $S(z) = E(z)/A(z)$, then we can get $E(z)$ back again by doing
+  something called an {\bf inverse filter:}
+  \begin{displaymath}
+    \mbox{\bf IF:}~S(z) = \frac{1}{A(z)}E(z)~~~
+    \mbox{\bf THEN:}~E(z) = A(z)S(z)
+  \end{displaymath}
+  The inverse filter, $A(z)$, has a form like this:
+  \begin{displaymath}
+    A(z)  = 1 - \sum_{k=1}^p a_k z^{-k}
+  \end{displaymath}
+  where $p$ is twice the number of resonant frequencies.  So if
+  speech has 4-5 resonances, then $p\approx 10$.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Inverse Filtering}
+
+  \centerline{\includegraphics[width=4.5in]{exp/inversefilter.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Inverse Filtering}
+
+  This one is an all-pole (feedback-only) filter:
+  \begin{displaymath}
+    S(z) = \frac{1}{1-\sum_{k=1}^p a_kz^{-k}} E(z)
+  \end{displaymath}
+  That means this one is an all-zero (feedforward only) filter:
+  \begin{displaymath}
+    E(z) = \left(1-\sum_{k=1}^p a_kz^{-k}\right) S(z)
+  \end{displaymath}
+  which we can implement just like this:
+  \begin{displaymath}
+    e[n] = s[n] - \sum_{k=1}^p a_k s[n-k]
+  \end{displaymath}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Linear Prediction]{Linear Prediction}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Linear Predictive Analysis}
+
+  This particular feedforward filter is called {\bf linear predictive
+    analysis}:
+  \begin{displaymath}
+    e[n] = s[n] - \sum_{k=1}^p a_k s[n-k]
+  \end{displaymath}
+  It's kind of like we're trying to predict $s[n]$ using a linear
+  combination of its own past samples:
+  \begin{displaymath}
+    \hat{s}[n] = \sum_{k=1}^p a_k s[n-k],
+  \end{displaymath}
+  and then $e[n]$, the glottal excitation, is the part that can't be
+  predicted:
+  \begin{displaymath}
+    e[n] = s[n] - \hat{s}[n]
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Linear Predictive Analysis}
+
+  Actually, linear predictive analysis is used a lot more often in
+  finance, these days, than in speech:
+  \begin{itemize}
+  \item In finance:
+    \begin{itemize}
+    \item Use linear prediction analysis to get rid of any price
+      movements that can be easily predicted from recent history.
+    \item Any price movements that are left over are ``important,''
+      and might suggest that you should buy or sell your stock.
+    \end{itemize}
+  \item In health: detect EKG patterns that are not predictable from
+    recent history.
+  \item In geology: detect earthquakes = impulses that are not
+    predictable from recent history.
+  \end{itemize}
+\end{frame}
+    
+\begin{frame}
+  \frametitle{Linear Predictive Analysis Filter}
+
+  \centerline{
+    \begin{tikzpicture}
+      \node[dspnodeopen,dsp/label=right] (y) at (8,1.5) {$e[n]$};
+      \node[dspadder] (a0) at (7,1.5) {} edge[dspconn](y);
+      \node[dspadder] (a1) at (7,0.5) {} edge[dspconn](a0);
+      \node[dspadder] (a2) at (7,-0.5) {} edge[dspconn](a1);
+      \node[dspadder] (a3) at (7,-1.5) {} edge[dspconn](a2);
+      \node[coordinate] (a4) at (7,-2.5) {} edge[dspconn](a3);
+      \node[dspmixer,dsp/label=above] (m4) at (6,-2.5) {$-a_4$} edge[dspline] (a4);
+      \node[coordinate] (s4) at (5,-2.5) {} edge[dspline](m4);
+      \node[dspsquare] (d4) at (5,-2) {$z^{-1}$} edge[dspline](s4);
+      \node[dspmixer,dsp/label=above] (m3) at (6,-1.5) {$-a_3$} edge[dspconn] (a3);
+      \node[dspnodefull] (s3) at (5,-1.5) {} edge[dspconn](d4) edge[dspline](m3);
+      \node[dspsquare] (d3) at (5,-1) {$z^{-1}$} edge[dspline](s3);
+      \node[dspmixer,dsp/label=above] (m2) at (6,-0.5) {$-a_2$} edge[dspconn] (a2);
+      \node[dspnodefull] (s2) at (5,-0.5) {} edge[dspconn](d3) edge[dspline](m2);
+      \node[dspsquare] (d2) at (5,0) {$z^{-1}$} edge[dspline](s2);
+      \node[dspmixer,dsp/label=above] (m1) at (6,0.5) {$-a_1$} edge[dspconn] (a1);
+      \node[dspnodefull] (s1) at (5,+0.5) {} edge[dspconn](d2) edge[dspline](m1);
+      \node[dspsquare] (d1) at (5,1) {$z^{-1}$} edge[dspline](s1);
+      \node[dspnodefull](ysplit) at (5,1.5){} edge[dspconn](a0) edge[dspconn](d1);
+      \node[dspnodeopen,dsp/label=left] (x) at (2,1.5) {$s[n]$} edge[dspconn](ysplit);
+  \end{tikzpicture}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Linear Predictive Synthesis}
+
+  The corresponding feedback filter is called {\bf linear predictive
+    synthesis}.  The idea is that, given $e[n]$, we can resynthesize
+  $s[n]$ by adding feedback, because:
+  \begin{displaymath}
+    S(z) = \frac{1}{1-\sum_{k=1}^p a_kz^{-k}} E(z)
+  \end{displaymath}
+  means that
+  \begin{displaymath}
+    s[n] = e[n] + \sum_{k=1}^p a_k s[n-k]
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Linear Predictive Synthesis Filter}
+
+  \centerline{
+    \begin{tikzpicture}
+      \node[dspnodeopen,dsp/label=right] (y) at (6,1.5) {$s[n]$};
+      \node[dspadder] (a0) at (3,1.5) {};
+      \node[dspadder] (a1) at (3,0.5) {} edge[dspconn](a0);
+      \node[dspadder] (a2) at (3,-0.5) {} edge[dspconn](a1);
+      \node[dspadder] (a3) at (3,-1.5) {} edge[dspconn](a2);
+      \node[coordinate] (a4) at (3,-2.5) {} edge[dspconn](a3);
+      \node[dspmixer,dsp/label=above] (m4) at (4,-2.5) {$a_4$} edge[dspline] (a4);
+      \node[coordinate] (s4) at (5,-2.5) {} edge[dspline](m4);
+      \node[dspsquare] (d4) at (5,-2) {$z^{-1}$} edge[dspline](s4);
+      \node[dspmixer,dsp/label=above] (m3) at (4,-1.5) {$a_3$} edge[dspconn] (a3);
+      \node[dspnodefull] (s3) at (5,-1.5) {} edge[dspconn](d4) edge[dspline](m3);
+      \node[dspsquare] (d3) at (5,-1) {$z^{-1}$} edge[dspline](s3);
+      \node[dspmixer,dsp/label=above] (m2) at (4,-0.5) {$a_2$} edge[dspconn] (a2);
+      \node[dspnodefull] (s2) at (5,-0.5) {} edge[dspconn](d3) edge[dspline](m2);
+      \node[dspsquare] (d2) at (5,0) {$z^{-1}$} edge[dspline](s2);
+      \node[dspmixer,dsp/label=above] (m1) at (4,0.5) {$a_1$} edge[dspconn] (a1);
+      \node[dspnodefull] (s1) at (5,+0.5) {} edge[dspconn](d2) edge[dspline](m1);
+      \node[dspsquare] (d1) at (5,1) {$z^{-1}$} edge[dspline](s1);
+      \node[dspnodefull](ysplit) at (5,1.5){} edge[dspconn](y) edge[dspconn](d1) edge[dspline](a0);
+      \node[dspnodeopen,dsp/label=left] (x) at (2,1.5) {$e[n]$} edge[dspconn](a0);
+  \end{tikzpicture}}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Coefficients]{Finding the Linear Predictive Coefficients}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Finding the Linear Predictive Coefficients}
+
+  Things we don't know:
+  \begin{itemize}
+  \item The timing of the unpredictable event ($n_0$), and its
+    amplitude ($G$).
+  \item The coefficients $a_k$.
+  \end{itemize}
+  It seems that, in order to find $n_0$ and $G$, we first need to know
+  the predictor coefficients, $a_k$.  How can we find $a_k$?
+\end{frame}
+
+\begin{frame}
+  \frametitle{Finding the Linear Predictive Coefficients}
+
+  Let's make the following assumption:
+  \begin{itemize}
+  \item Everything that can be predicted is part of $\hat{s}[n]$.
+    Only the unpredictable part is $e[n]$.
+  \end{itemize}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{Finding the Linear Predictive Coefficients}
+
+  Let's make the following assumption:
+  \begin{itemize}
+  \item Everything that can be predicted is part of $\hat{s}[n]$.
+    Only the unpredictable part is $e[n]$.
+  \item So we define $e[n]$ to be:
+    \begin{displaymath}
+      e[n] = s[n] -\sum_{k=1}^p a_k s[n-k]
+    \end{displaymath}
+  \item \ldots and then choose $a_k$ to make $e[n]$ as small as possible.
+    \begin{displaymath}
+      a_k = \argmin \sum_{n=-\infty}^\infty e^2[n]
+    \end{displaymath}
+  \end{itemize}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{Finding the Linear Predictive Coefficients}
+
+  So we've formulated the problem like this: we want to find $a_k$ in
+  order to minimize:
+  \begin{displaymath}
+    {\mathcal E}=\sum_{n=-\infty}^\infty e^2[n] =
+    \sum_{n=-\infty}^\infty\left(s[n]-\sum_{m=1}^p a_m s[n-m]\right)^2
+  \end{displaymath}
+\end{frame}
+\begin{frame}
+  \frametitle{The Orthogonality Principle}
+  
+  If we differentiate $d{\mathcal E}/da_k$, we get
+  \begin{displaymath}
+    \frac{d{\mathcal E}}{da_k} =
+    2\sum_{n=-\infty}^\infty \left(s[n]-\sum_{m=1}^pa_m s[n-m]\right)s[n-k]=2e[n]s[n-k]
+  \end{displaymath}
+  If we then set the derivative to zero, we get what's called the {\bf orthogonality principle}.
+  The orthogonality principle says that the optimal coefficients, $a_k$, make
+  the error {\bf orthogonal} to the predictor signal ($e[n]\perp s[n-k]$), by which we mean that
+  \begin{displaymath}
+    0 = \sum_{n=-\infty}^{\infty}e[n]s[n-k]~~~\mbox{for all}~1\le k\le p
+  \end{displaymath}
+
+  This is a set of $p$ linear equations (for $1\le k\le p$) in $p$
+  different unknowns ($a_k$).  So it can be solved.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Autocorrelation}
+
+  In order to write the solution more easily, let's define something
+  called the ``autocorrelation,'' $R[m]$:
+  \begin{displaymath}
+    R[m] = \sum_{n=-\infty}^\infty s[n]s[n-m]
+  \end{displaymath}
+  In terms of the autocorrelation, the orthogonality equations are
+  \begin{displaymath}
+    0 = R[k] -\sum_{m=1}^pa_m R[k-m]~~~\forall~1\le k\le p
+  \end{displaymath}
+  which can be re-arranged as
+  \begin{displaymath}
+    R[k] = \sum_{m=1}^pa_m R[k-m]~~~\forall~1\le k\le p
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Matrices}
+
+  Since we have $p$ linear equations in $p$ unknowns, let's write this
+  as a matrix equation:
+  \begin{displaymath}
+    \left[\begin{array}{c}R[1]\\ R[2]\\\vdots\\ R[p]\end{array}\right] =
+    \left[\begin{array}{cccc} R[0] & R[1] &  \cdots & R[p-1] \\
+        R[1] & R[0] & \cdots & R[p-2] \\
+        \vdots & \vdots & \ddots & \vdots \\
+        R[p-1] & R[p-2] & \cdots & R[0] \end{array}\right]
+    \left[\begin{array}{c}a_1\\a_2\\\vdots\\a_p\end{array}\right]
+  \end{displaymath}
+  where I've taken advantage of the fact that $R[m]=R[-m]$:
+  \begin{displaymath}
+    R[m] = \sum_{n=-\infty}^\infty s[n]s[n-m]
+  \end{displaymath}
+\end{frame}
+      
+\begin{frame}
+  \frametitle{Matrices}
+
+  Since we have $p$ linear equations in $p$ unknowns, let's write this
+  as a matrix equation:
+  \begin{displaymath}
+    \vec\gamma = R \vec{a}
+  \end{displaymath}
+  where
+  \begin{displaymath}
+    \vec\gamma = \left[\begin{array}{c}R[1]\\ R[2]\\\vdots\\ R[p]\end{array}\right],~~~
+    R = \left[\begin{array}{cccc} R[0] & R[1] &  \cdots & R[p-1] \\
+        R[1] & R[0] & \cdots & R[p-2] \\
+        \vdots & \vdots & \ddots & \vdots \\
+        R[p-1] & R[p-2] & \cdots & R[0] \end{array}\right].
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Matrices}
+
+  Since we have $p$ linear equations in $p$ unknowns, let's write this
+  as a matrix equation:
+  \begin{displaymath}
+    \vec\gamma = R \vec{a}
+  \end{displaymath}
+  and therefore the solution is
+  \begin{displaymath}
+    \vec{a} = R^{-1} \vec\gamma
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Finding the Linear Predictive Coefficients}
+  
+  So here's the way we perform linear predictive analysis:
+  \begin{enumerate}
+  \item Create the matrix $R$ and vector $\vec\gamma$:
+    \begin{displaymath}
+      \vec\gamma = \left[\begin{array}{c}R[1]\\ R[2]\\\vdots\\ R[p]\end{array}\right],~~~
+      R = \left[\begin{array}{cccc} R[0] & R[1] &  \cdots & R[p-1] \\
+          R[1] & R[0] & \cdots & R[p-2] \\
+          \vdots & \vdots & \ddots & \vdots \\
+          R[p-1] & R[p-2] & \cdots & R[0] \end{array}\right]
+    \end{displaymath}
+  \item Invert $R$.
+    \begin{displaymath}
+      \vec{a} = R^{-1} \vec\gamma
+    \end{displaymath}
+  \end{enumerate}
+\end{frame}
+
+%\begin{frame}
+%  \frametitle{Inverse Filtering}
+%
+%  \centerline{\includegraphics[width=4.5in]{exp/inversefilter.png}}
+%\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Summary]{Summary}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Main Equations}
+  \begin{itemize}
+  \item Inverse filter:
+    \begin{align*}
+      H(z) &= \frac{C_1}{1-p_1z^{-1}}+\frac{C_1^*}{1-p_1^* z^{-1}}\\
+      h[n] &= C_1p_1^n u[n] + C_1^* (p_1^*)^n u[n]
+    \end{align*}
+  \item Orthogonality principle: $a_k$ minimizes
+    \[
+    \sum_{n=-\infty}^\infty e^2[n] = \sum_{n-\infty}^\infty \left(s[n]-\sum_{m=1}^p a_m s[n-m]\right)^2
+    \]
+    if and only if $e[n]\perp s[n-k]$, meaning
+    \[
+    \sum_{n=-\infty}^{\infty}e[n]s[n-k] = 0
+    \]
+  \item $p$ linear equations  in $p$ unknowns:
+    \begin{displaymath}
+      \vec{a} = R^{-1} \vec\gamma
+    \end{displaymath}
+  \end{itemize}
+\end{frame}
+
+%\begin{frame}
+%  \frametitle{Inverse Filtering}
+%
+%  If $S(z) = E(z)/A(z)$, then we can get $E(z)$ back again by doing
+%  something called an {\bf inverse filter:}
+%  \begin{displaymath}
+%    \mbox{\bf IF:}~S(z) = \frac{1}{A(z)}E(z)~~~
+%    \mbox{\bf THEN:}~E(z) = A(z)S(z)
+%  \end{displaymath}
+%  which we implement using a feedfoward difference equation, that
+%  computes a linear prediction of $s[n]$, then finds the difference
+%  between $s[n]$ and its linear prediction:
+%  \begin{displaymath}
+%    e[n] = s[n] - \sum_{k=1}^p a_k s[n-k]
+%  \end{displaymath}
+%\end{frame}
+%
+%\begin{frame}
+%  \frametitle{Linear Predictive Analysis}
+%
+%  Actually, linear predictive analysis is used a lot more often in
+%  finance, these days, than in speech:
+%  \begin{itemize}
+%  \item In finance: detect important market movements = price changes
+%    that are not predictable from recent history.
+%  \item In health: detect EKG patterns that are not predictable from
+%    recent history.
+%  \item In geology: detect earthquakes = impulses that are not
+%    predictable from recent history.
+%  \item \ldots you get the idea\ldots
+%  \end{itemize}
+%\end{frame}
+%    
+%\begin{frame}
+%  \frametitle{Finding the Linear Predictive Coefficients}
+%
+%  Let's make the following assumption:
+%  \begin{itemize}
+%  \item Everything that can be predicted is part of $\hat{s}[n]$.
+%    Only the unpredictable part is $e[n]$.
+%  \item So we define $e[n]$ to be:
+%    \begin{displaymath}
+%      e[n] = s[n] -\sum_{k=1}^p a_k s[n-k]
+%    \end{displaymath}
+%  \item \ldots and then choose $a_k$ to make $e[n]$ as small as possible.
+%    \begin{displaymath}
+%      a_k = \argmin \sum_{n=-\infty}^\infty e^2[n]
+%    \end{displaymath}
+%    which, when solved, gives us the simple equation $\vec{a}=R^{-1}\vec\gamma$.
+%  \end{itemize}
+%\end{frame}
+  
+  
+\end{document}

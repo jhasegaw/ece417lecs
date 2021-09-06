@@ -1,0 +1,415 @@
+\documentclass{beamer}
+\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate,media9}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc}
+\newcommand{\argmax}{\operatornamewithlimits{argmax}}
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\mode<presentation>{\usetheme{Frankfurt}}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 1: Intro; DSP Review}
+\author{Mark Hasegawa-Johnson}
+\date{ECE 417: Signal and Image Analysis, Fall 2021}  
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Intro]{Intro: Multimedia  Signal Processing}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Intro: What is Signal Processing?}
+
+  \begin{itemize}
+  \item Linear Time Invariant systems: Use Fourier analysis
+    \begin{itemize}
+      \item Advantages: analytic solutions, instantaneously, no training
+      \item Disadvantages: only optimal for LTI systems
+    \end{itemize}
+  \item Nonlinear \& Time-Varying systems: Use machine learning
+    \begin{itemize}
+    \item Advantages: learns the optimal solution for any problem
+    \item Disadvantages: training takes time, often fails; analytic solutions provide only loose
+      upper bounds
+    \end{itemize}
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Where can I learn more?}
+
+  There are many excellent conferences and publications  related to particular
+  areas in signal processing.  There is also one really excellent conference
+  and one really excellent magazine dedicated specifically to signal processing:
+  \begin{itemize}
+  \item \href{https://2022.ieeeicassp.org/}{ICASSP} (International
+    Conference on Acoustics, Speech and Signal Processing)
+  \item \href{https://signalprocessingsociety.org/publications-resources/ieee-signal-processing-magazine}{IEEE Signal Processing Magazine}
+  \end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Overview]{Overview: Course Policies and Administration}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Overview: Course Topics}
+
+  There are six MPs, covering
+  $\{\mbox{speech},\mbox{video}\}\times\{\mbox{DSP
+    methods},\mbox{Bayesian methods},\mbox{ML methods}\}$:
+  \begin{itemize}
+  \item DSP methods: MP1 (speech synthesis), MP2 (video synthesis)
+  \item Bayesian methods: MP3 (image recognition), MP4 (speech recognition)
+  \item Neural networks: MP5 (image recognition), MP6 (voice conversion)
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Overview: Course  Policies and Administration}
+
+  About here, visit the 
+  \href{https://courses.grainger.illinois.edu/ece417/fa2021/}{course webpage}.
+
+  Notice: if you haven't had a DSP course yet, you might want to
+  consider taking
+  \href{https://courses.grainger.illinois.edu/ece401/fa2021/}{ECE 401}
+  instead of this course.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Fourier]{Review: Fourier Transforms}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Review: Fourier Transforms}
+
+  About here, watch the movie called
+  \href{https://mediaspace.illinois.edu/media/t/1_x7tsa6l7/26816181}{fourier\_review.mov}.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Poles/Zeros]{Review: Poles and Zeros}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Z Transform}
+  You might remember that the Z-transform is, basically, a funny way to write the
+  DTFT.  The DTFT is
+  \[
+  H(\omega) = \sum_{n=-\infty}^\infty h[n]e^{-j\omega n}
+  \]
+  \ldots and the Z  transform is
+  \[
+  H(z) = \sum_{n=-\infty}^\infty h[n]z^{-n}
+  \]
+  There are some limits on the values of $z$ for which $H(z)$ is
+  finite.  Let's talk about those.
+\end{frame}
+
+\begin{frame}
+  \frametitle{FIR and IIR Filters}
+
+  \begin{itemize}
+  \item An {\bf FIR} (finite impulse response) filter is one
+    whose impulse response lasts a finite amount of time.  Any such filter
+    can be written as
+    \[
+    y[n] = \sum_{m=0}^{M-1} b_m x[n-m]
+    \]
+  \item An {\bf IIR} (infinite impulse response) filter is one whose
+    impulse response lasts an infinite amount of time.  We will be
+    most interested in IIR filters that can be written as
+    \[
+    \sum_{m=0}^{N-1} a_n y[n-m] = \sum_{m=0}^{M-1} b_m x[n-m]
+    \]
+  \end{itemize}
+  
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{First-Order Feedback-Only Filter}
+
+  Let's find the general form of $h[n]$, for the simplest possible
+  IIR filter: a filter with one feedback term, and no
+  feedforward terms, like this:
+  \[
+  y[n] = x[n] + ay[n-1],
+  \]
+  where $a$ is any constant (positive, negative, real, or complex).
+\end{frame}
+
+\begin{frame}
+  \frametitle{Impulse Response of a First-Order Filter}
+
+  We can find the impulse response by putting in $x[n]=\delta[n]$, and
+  getting out $y[n]=h[n]$:
+  \[
+  h[n] = \delta[n] + ah[n-1].
+  \]
+  Recursive computation gives
+  \begin{align*}
+    h[0] &= 1 \\
+    h[1] &= a\\
+    h[2] &= a^2\\
+     & \vdots\\
+    h[n] &= a^nu[n]
+  \end{align*}
+  where we use the notation $u[n]$ to mean the ``unit step function,''
+  \[u[n] = \begin{cases}1& n\ge 0\\0 & n<0\end{cases}\]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Impulse Response of Stable First-Order Filters}
+
+  The coefficient, $a$, can be positive, negative, or even complex.
+  If $a$ is complex, then $h[n]$ is also complex-valued.
+  \centerline{\includegraphics[height=2.5in]{exp/iir_stable.png}}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Impulse Response of Unstable First-Order Filters}
+
+  If $|a|>1$, then the impulse response grows exponentially.  If
+  $|a|=1$, then the impulse response never dies away.  In either case,
+  we say the filter is ``unstable.''
+  \centerline{\includegraphics[height=2.5in]{exp/iir_unstable.png}}
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Instability}
+
+  \begin{itemize}
+  \item A {\bf stable} filter is one that always generates finite
+    outputs ($|y[n]|$ finite) for every possible finite input
+    ($|x[n]|$ finite).
+  \item An {\bf unstable} filter is one that, at least sometimes,
+    generates infinite outputs, even if the input is finite.
+  \item A first-order IIR filter is stable if and only if $|a|<1$.
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Transfer Function of a First-Order Filter}
+
+  We can find the transfer function by taking the Z-transform of each
+  term in this equation:
+  \[
+  y[n] = x[n] + ay[n-1].
+  \]
+  Using the transform pair $y[n-1]\leftrightarrow z^{-1}Y(z)$, we get
+  \[
+  Y(z) = X(z)+az^{-1} Y(z),
+  \]
+  which we can solve to get
+  \[
+  H(z)  = \frac{Y(z)}{X(z)} = \frac{1}{1-az^{-1}}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Frequency Response of a  First-Order Filter}
+
+  If the filter is stable ($|a|<1$), then 
+  we can find the frequency response by plugging in $z=e^{j\omega}$:
+  \[
+  H(\omega) = H(z)\vert_{z=e^{j\omega}}  =  \frac{1}{1-ae^{-j\omega}}~~~\mbox{if}~|a|<1
+  \]
+
+  This formula only works if $|a|<1$.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Frequency Response of a  First-Order Filter}
+  \[
+  H(\omega) = \frac{1}{1-ae^{-j\omega}}~~~\mbox{if}~|a|<1
+  \]
+  
+  \centerline{\includegraphics[width=4.5in]{exp/iir_freqresponse.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Transfer Function $\leftrightarrow$ Impulse Response}
+
+  Notice that $H(z)$ is actually the $Z$-transform of $h[n]$.  We can
+  prove that as follows:
+  \begin{align*}
+    H(z) &= \sum_{n=-\infty}^\infty h[n] z^{-n}\\
+    &= \sum_{n=0}^\infty a^n z^{-n} 
+  \end{align*}
+  This is a standard geometric series, with a ratio of $az^{-1}$.  As
+  long as $|a|<1$, we can use the formula for an infinite-length
+  geometric series, which is:
+  \[
+  H(z) = \frac{1}{1-az^{-1}},
+  \]
+  So we confirm that $h[n]\leftrightarrow H(z)$ for both FIR and IIR
+  filters, as long as $|a|<1$.
+\end{frame}
+
+\begin{frame}
+  \frametitle{First-Order Filter}
+
+  Now, let's find the transfer function of a general first-order filter, including BOTH
+  feedforward and feedback delays:
+  \[
+  y[n] = x[n] + bx[n-1] + ay[n-1],
+  \]
+  where we'll assume that $|a|<1$, so the filter is stable.  
+\end{frame}
+
+\begin{frame}
+  \frametitle{Transfer Function of a First-Order Filter}
+
+  We can find the transfer function by taking the Z-transform of each
+  term in this equation equation:
+  \begin{align*}
+    y[n] &= x[n] + bx[n-1] + ay[n-1],\\
+    Y(z) &= X(z)+bz^{-1}X(z)+az^{-1} Y(z),
+  \end{align*}
+  which we can solve to get
+  \[
+  H(z)  = \frac{Y(z)}{X(z)} = \frac{1+bz^{-1}}{1-az^{-1}}.
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Treating $H(z)$ as a Ratio of Two Polynomials}
+
+  Notice that $H(z)$ is the ratio of two polynomials:
+  \[
+  H(z)=\frac{1+bz^{-1}}{1-az^{-1}}=\frac{z+b}{z-a}
+  \]
+  \begin{itemize}
+  \item $z=-b$ is called the {\bf zero} of $H(z)$, meaning that $H(-b)=0$.
+  \item $z=a$ is called the {\bf pole} of $H(z)$, meaning that $H(a)=\infty$
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Pole and Zero of $H(z)$}
+
+  \begin{itemize}
+  \item The pole, $z=a$, and zero, $z=-b$, are the values of $z$ for which
+    $H(z)=\infty$  and $H(z)=0$, respectively.
+  \item But what does that mean?  We know that for $z=e^{j\omega}$,
+    $H(z)$ is just the frequency response:
+    \[
+    H(\omega) = H(z)\vert_{z=e^{j\omega}}
+    \]
+    but the pole and zero do not normally have unit magnitude.
+  \item What it means is that:
+    \begin{itemize}
+      \item When $\omega=\angle (-b)$, then
+        $|H(\omega)|$ is as close to a zero as it can possibly get, so at that 
+        that frequency, $|H(\omega)|$ is as low as it can get.
+      \item When $\omega=\angle a$, then
+        $|H(\omega)|$ is as close to a pole as it can possibly get, so at that 
+        that frequency, $|H(\omega)|$ is as high as it can get.
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \centerline{\animategraphics[loop,controls,width=4.5in]{10}{exp/magresponse}{0}{99}}
+\end{frame}
+
+\begin{frame}
+  \centerline{\animategraphics[loop,controls,width=5in]{10}{exp/toneresponse}{0}{99}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Vectors in the Complex Plane}
+
+  Suppose we write $|H(z)|$ like this:
+  \[
+  \vert H(z)\vert = \frac{\vert z+b\vert}{\vert z-a\vert}
+  \]
+  Now let's evaluate at $z=e^{j\omega}$:
+  \[
+  \vert H(\omega)\vert = 
+  \frac{\vert e^{j\omega}+b\vert}{\vert e^{j\omega}-a\vert}
+  \]
+  What we've discovered is that $|H(\omega)|$ is small when the vector
+  distance $|e^{j\omega}+b|$ is small, but LARGE when the vector
+  distance $|e^{j\omega}-a|$ is small.
+\end{frame}
+
+\begin{frame}
+  \centerline{\animategraphics[loop,controls,width=4.5in]{10}{exp/magresponse}{0}{99}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Why This is Useful}
+
+  Now we have another way of thinking about frequency response.
+  \begin{itemize}
+    \item Instead of just LPF, HPF, or BPF, we can design a filter to have
+      zeros at particular frequencies, $\angle (-b)$, AND to have
+      poles at particular frequencies, $\angle a$,
+    \item The magnitude $|H(\omega)|$ is
+      $|e^{j\omega}+b|/|e^{j\omega}-a|$.
+    \item Using this trick, we can design filters that have much more
+      subtle frequency responses than just an ideal LPF, BPF, or HPF.
+  \end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Summary]{Summary}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Summary: DSP Review}
+  In summary, you should remember how to do these things:
+  \begin{itemize}
+  \item Fourier Series, CTFT, DTFT, and DFT.
+  \item Z-transform.
+  \item Z-transform and frequency-response of FIR and IIR filters.
+  \end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Optional]{Other Possibly Useful Review Videos}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Other Possibly Useful Review Videos}
+
+  Here are some other videos that might be useful.
+  \begin{itemize}
+  \item This one, I think, is a review of material from ECE 310, so I
+    kind of expect you to know it:
+    \href{https://mediaspace.illinois.edu/media/t/1_7vbishf8/26816181}{filtering review}
+  \item These three provide more details about noise, and about
+    speech.  This material is optional; if it helps you understand the
+    LPC material, that's great, but if not, you can ignore it.
+    \begin{itemize}
+      \item \href{https://mediaspace.illinois.edu/media/t/1_naudxmet/26816181}{Noise}.
+      \item \href{https://mediaspace.illinois.edu/media/t/1_gm5xuh5g/26816181}{Speech}.
+      \item \href{https://mediaspace.illinois.edu/media/t/1_2839d36o/26816181}{Windwed Speech}.
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+
+\end{document}
+
