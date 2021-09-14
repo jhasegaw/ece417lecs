@@ -196,18 +196,18 @@
   \begin{align*}
     V(D,G) &= \mathbb{E}_{x\sim p_{data}}\left[\ln D(x)\right]
     +\mathbb{E}_{x\sim p_g}\left[\ln\left(1-D(x)\right)\right]\\
-    &= \int \left(p_{data}(x)\ln D(x)+p_g(x)\left(1-D(x)\right)\right)dx\\
+    &= \int \left(p_{data}(x)\ln D(x)+p_g(x)\ln\left(1-D(x)\right)\right)dx\\
     &= \int f(x)dx
   \end{align*}
   So for any particular $x$, the discrimator wants to maximize:
   \begin{displaymath}
-    f(x)=p_{data}(x)\ln D(x)+p_g(x)\left(1-D(x)\right)
+    f(x)=p_{data}(x)\ln D(x)+p_g(x)\ln\left(1-D(x)\right)
   \end{displaymath}
 \end{frame}
 \begin{frame}
   \frametitle{Nash Equilibrium for the GAN: Player $D$}
   \begin{align*}
-    f(x)&=p_{data}\ln D+p_g\left(1-D\right)\\
+    f(x)&=p_{data}\ln D+p_g\ln\left(1-D\right)\\
     \frac{df}{dD} &= \frac{p_{data}}{D} - \frac{p_g}{1-D}\\
     \frac{d^2f}{dD^2} &= -\frac{p_{data}}{D^2} - \frac{p_g}{(1-D)^2}
   \end{align*}
@@ -225,9 +225,44 @@
 \begin{frame}
   \frametitle{Nash Equilibrium for the GAN: Player $G$}
 
-  Now, let $G$ try to win. $G$ can assume that, whatever strategy they
-  choose, $D$ will choose the optimal counter-strategy $D_G^*(x)$.  Therefore,
-  $G$ wants to choose $p_G$ in order to minimize
+  Now, let $G$ try to win. First, let's suppose that $D(x)$ is fixed.
+  In that case, what is the optimum strategy for $G$?
+
+  \begin{align*}
+    G^*_D(z) &= \arg\min \mathbb{E}_{z\sim p(z)}\left[\ln\left(1-D(G(z))\right)\right]\\
+    &= \arg\max D(G(z))
+  \end{align*}
+  In other words, $G(z)$ should always output the same $x$ (the one
+  that maximizes $D(x)$), regardless of what $z$ is!  Though that's a
+  good strategy for player $G$, it's not a very good machine learning
+  result.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Avoiding the trivial solution}
+
+  \begin{itemize}
+  \item How can we avoid the trivial solution, where $G(z)$ always
+    outputs the same $x$?
+  \item Answer: we have to re-train $D(x)$.  If $G(z)$ always outputs
+    the same $x$, then the probability density goes to infinity
+    ($p_g(x)\rightarrow\infty$) for that token.  If $D(x)$ is allowed
+    to respond rationally, then it will penalize that over-sampled
+    token:
+    \begin{displaymath}
+      D^*_G(x) = \frac{p_{data}(x)}{p_{data}(x)+p_g(x)} \rightarrow_{p_g(x)\rightarrow\infty} 0
+    \end{displaymath}
+  \end{itemize}
+\end{frame}
+
+  
+\begin{frame}
+  \frametitle{Nash Equilibrium for the GAN: Player $G$}
+
+  In order to get a better machine learning result, let's assume that
+  whatever strategy $G$ uses, $D$ will choose the optimal
+  counter-strategy $D_G^*(x)$.  Therefore, $G$ wants to choose $p_G$
+  in order to minimize
   \begin{displaymath}
     V(D^*_G,G) = \mathbb{E}_{x\sim p_{data}}\left[\ln D_G^*(x)\right]
     +\mathbb{E}_{x\sim p_g}\left[\ln\left(1-D_G^*(x)\right)\right]

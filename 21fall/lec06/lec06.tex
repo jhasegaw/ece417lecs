@@ -1,0 +1,455 @@
+\documentclass{beamer}
+\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc,dsp,chains}
+\newcommand{\argmax}{\operatornamewithlimits{argmax}}
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\mode<presentation>{\usetheme{Frankfurt}}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 6: Optical Flow}
+\author{Mark Hasegawa-Johnson}
+\date{ECE 417: Multimedia Signal Processing, Fall 2021}  
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Gradient]{Image Gradient}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Image gradient}
+
+  The image gradient is a way of characterizing the distribution of
+  light and dark pixels in an image.  Suppose the image intensity is
+  $f(t,r,c)$.  The image gradient is:
+  \[
+  \nabla f =
+  = \left[\begin{array}{c} \frac{\partial f(t,r,c)}{\partial c}\\
+      \frac{\partial f(t,r,c)}{\partial r}\end{array}\right]
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Image gradient}
+
+  {\centering
+    \includegraphics[width=\textwidth]{exp/512px-Gradient2.svg.png}
+
+    {\tiny
+      CC-BY 2.5, Gufosawa, 2021
+    }
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{Image gradient}
+
+  {\centering
+    \includegraphics[width=\textwidth]{exp/Intensity_image_with_gradient_images.png}
+
+    {\tiny
+      Public domain image, Njw00, 2010
+    }
+  }
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{How do you calculate the image gradient?}
+
+  Basically, use one of the standard numerical estimates of a
+  derivative.  For example, the central-difference operator:
+  \[
+  \nabla f 
+  = \left[\begin{array}{c} \frac{\partial f(t,r,c)}{\partial c}\\
+      \frac{\partial f(t,r,c)}{\partial r}\end{array}\right]
+  = \left[\begin{array}{c} \frac{f[t,r,c+1]-f[t,r,c-1]}{2}\\
+      \frac{f[t,r+1,c]-f[t,r-1,c]}{2}\end{array}\right]
+  \]
+
+  \href{https://en.wikipedia.org/wiki/Image_derivatives}{\color{blue}Wikipedia}
+  has a good listing of other methods you can use.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Flow]{Optical Flow}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Optical Flow}
+
+  Definition: {\bf optical flow} is the vector field $\vec{v}(t,r,c)$
+  specifying the current apparent velocity of the pixel at position
+  $(r,c)$.  It depends on motion of (1) the object observed, and (2)
+  the observer.
+  
+  {\centering
+    \includegraphics[width=\textwidth]{exp/Opticfloweg.png}
+
+    {\tiny
+      CC-BY 2.5, Huston SJ, Krapp HG, 2008 Visuomotor Transformation
+      in the Fly Gaze Stabilization System. PLoS Biol 6(7):
+      e173. doi:10.1371/journal.pbio.006017
+    }
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{Optical Flow}
+
+  Definition: {\bf optical flow} is the vector field $\vec{v}(t,r,c)$
+  specifying the current apparent velocity of the pixel at position
+  $(r,c)$.  It depends on motion of (1) the object observed, and (2)
+  the observer.
+
+  {\centering
+    \includegraphics[width=\textwidth]{exp/Optical-flow-estimation-for-different-sequences.jpg}\\
+
+    {\tiny
+      Pengcheng Han et. al. "An Object Detection Method Using Wavelet
+      Optical Flow and Hybrid Linear-Nonlinear Classifier",
+      Mathematical Problems in Engineering doi:10.1155/2013/96541
+    }
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{Optical Flow}
+
+  For example, you can use it to track a user-specified rectangle in
+  the ultrasound video of a tendon.
+
+  {\centering
+    \ifdefined\novideo
+    \includegraphics[width=0.7\textwidth]{exp/tendon/1.png}
+    \else
+    \animategraphics[loop,controls,width=0.7\textwidth]{100}{exp/tendon/}{400}{500}
+    \fi
+
+    {\tiny
+      CC-BY 4.0 Chuang B, Hsu J, Kuo L, Jou I, Su F, Sun Y
+      (2017). "Tendon-motion tracking in an ultrasound image sequence
+      using optical-flow-based block matching". BioMedical Engineering
+      OnLine
+    }
+  }
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{How to calculate optical flow}
+
+  General idea:
+  \begin{itemize}
+    \item Treat the image as a function of continuous time and
+      space, $f(t,r,c)$.
+    \item If the image intensity is changing, as a function of time,
+      then try to explain it by moving pixels around.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Calculating optical flow}
+
+  More formally, let's treat local variation of $f(t,r,c)$ using a
+  first-order Taylor series:
+  \[
+  f\left(t+\Delta t,r+\Delta r,c+\Delta c\right)\approx f(t,r,c) +
+  \Delta t\frac{\partial f}{\partial t}+
+  \Delta r\frac{\partial f}{\partial r}+
+  \Delta c\frac{\partial f}{\partial c}
+  \]
+  Hypothesize that all intensity variations are caused by pixels
+  moving around.  Then
+  \[
+  f\left(t+\Delta t,r+\Delta r,c+\Delta c\right) - f(t,r,c) = 0
+  \]
+  
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Calculating optical flow}
+
+  \begin{align*}
+    0 & =   f\left(t+\Delta t,r+\Delta r,c+\Delta c\right) - f(t,r,c) \\
+    &\approx   \Delta t\frac{\partial f}{\partial t}+
+    \Delta r\frac{\partial f}{\partial r}+
+    \Delta c\frac{\partial f}{\partial c}
+  \end{align*}
+\end{frame}
+\begin{frame}
+  \frametitle{Calculating optical flow}
+
+  \[
+  0 \approx   \Delta t\frac{\partial f}{\partial t}+
+  \Delta r\frac{\partial f}{\partial r}+
+  \Delta c\frac{\partial f}{\partial c}
+  \]
+  Dividing through by $\Delta t$, and taking the limit as $\Delta
+  t\rightarrow 0$, we get
+  \[
+  0 \approx   \frac{\partial f}{\partial t}+
+  \left(\frac{\partial r}{\partial t}\right)\frac{\partial f}{\partial r}+
+  \left(\frac{\partial c}{\partial t}\right)\frac{\partial f}{\partial c}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Calculating optical flow}
+
+  Re-arranging gives us the optical flow equation:
+  \[
+  -\frac{\partial f}{\partial t} \approx 
+  \left(\frac{\partial r}{\partial t}\right)\frac{\partial f}{\partial r}+
+  \left(\frac{\partial c}{\partial t}\right)\frac{\partial f}{\partial c}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{How to calculate optical flow}
+  
+  Define the optical flow vector, $\vec{v}(t,r,c)$, and image gradient, $\nabla f(t,r,c)$:
+  \[
+  \vec{v}=\left[\begin{array}{c}\frac{\partial c}{\partial t}\\\frac{\partial r}{\partial t}\end{array}\right],~~~
+  \nabla f=\left[\begin{array}{c}\frac{\partial f}{\partial c}\\\frac{\partial f}{\partial r}\end{array}\right]
+  \]
+  Then the optical flow equation is:
+  \[
+  -\frac{\partial f}{\partial t} =(\nabla f)^T\vec{v}
+  \]
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Lucas-Kanade]{The Lucas-Kanade Algorithm}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{How to calculate optical flow}
+
+  So we have this optical flow equation:
+  \[
+  -\frac{\partial f}{\partial t} =(\nabla f)^T\vec{v}
+  \]
+  Assume that we can calculate $\partial f/\partial t$ and $\nabla f$,
+  using standard image gradient methods.  Now we just need to find
+  $\vec{v}$.  But $\vec{v}=[v_r, v_c]^T$ is a vector of two unknowns,
+  so the equation above is one equation in two unknowns!
+\end{frame}
+
+\begin{frame}
+  \frametitle{How to calculate optical flow}
+
+  The solution is to assume that a small block of pixels all move together:
+  
+  {\centering
+    \includegraphics[height=1.5in]{exp/Block-matching_algorithm.png}
+
+    {\tiny CC-SA 4.0 by German iris, 2017}
+  }
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Lucas-Kanade Algorithm}
+
+  The Lucas-Kanade Algorithm replaces this equation
+  \[
+  -\frac{\partial f}{\partial t} =(\nabla f)^T\vec{v}
+  \]
+  with this equation:
+  \[
+  -\left[\begin{array}{c}
+      \frac{\partial f[t,r-W,c-W]}{\partial t}\\
+      \vdots\\
+      \frac{\partial f[t,r+W,c+W]}{\partial t}
+    \end{array}\right]
+  =
+  \left[\begin{array}{cc}
+      \frac{\partial f[t,r-W,c-W]}{\partial c}&\frac{\partial f[t,r-W,c-W]}{\partial r}\\
+      \vdots\\
+      \frac{\partial f[t,r+W,c+W]}{\partial c}&\frac{\partial f[t,r+W,c+W]}{\partial r}
+    \end{array}\right]
+  \left[\begin{array}{c}v_c\\ v_r\end{array}\right]
+  \]
+  so that we are averaging over a block of size $(2W+1)\times(2W+1)$ pixels.
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Lucas-Kanade Algorithm}
+
+  The Lucas-Kanade algorithm solves the equation
+  \[\vec{b}=A\vec{v} \]
+  where
+  \[
+  \vec{b} = -\left[\begin{array}{c}
+      \frac{\partial f[t,r-W,c-W]}{\partial t}\\
+      \vdots\\
+      \frac{\partial f[t,r+W,c+W]}{\partial t}
+    \end{array}\right],~~~
+  A=\left[\begin{array}{cc}
+      \frac{\partial f[t,r-W,c-W]}{\partial c}&\frac{\partial f[t,r-W,c-W]}{\partial r}\\
+      \vdots\\
+      \frac{\partial f[t,r+W,c+W]}{\partial c}&\frac{\partial f[t,r+W,c+W]}{\partial r}
+    \end{array}\right]
+  \]
+  \[
+  \vec{v}=\left[\begin{array}{c}v_c[t,r,c]\\ v_r[t,r,c]\end{array}\right]
+  \]
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{The Lucas-Kanade Algorithm}
+
+  The Lucas-Kanade algorithm solves the equation
+  \[\vec{b}=A\vec{v} \]
+  \ldots but now $A$ is a matrix of size $(2W+1)\times 2$, so it's
+  still not invertible!  How do we solve that?
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Pseudo-Inverse]{Pseudo-Inverse}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Pseudo-Inverse}
+
+  The pseudo-inverse, $A^\dag$, of any matrix $A$, is a matrix that
+  acts like $A^{-1}$ in many ways, but it doesn't require $A$ to be
+  square.  Here are some of its properties:
+  \begin{align*}
+    A A^\dag A &= A\\
+    A^\dag A A^\dag &= A
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Pseudo-Inverse}
+
+  Of particular interest to us, the vector $\vec{v}=A^\dag\vec{b}$
+  ``pseudo-solves'' the equation $\vec{b}=A\vec{v}$.  By pseudo-solve, we
+  mean that
+  \begin{itemize}
+  \item If $A$ is a short fat matrix, then there are an infinite
+    number of different vectors $\vec{v}$ that solve
+    $\vec{b}=A\vec{v}$.  $\vec{v}=A^\dag \vec{b}$ is one of those;
+    specifically, it's the one that minimizes $\Vert\vec{v}\Vert^2$.
+  \item If $A$ is a tall thin matrix, then there is usually no vector
+    $\vec{v}$ that solves $\vec{b}=A\vec{v}$, but $\vec{v}=A^\dag
+    \vec{b}$ is the vector that comes closest, in the sense that 
+    \[
+    A^\dag\vec{b} = \mbox{argmin}_{\vec{v}}\Vert\vec{b}-A\vec{v}\Vert^2
+    \]
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Solving for the Pseudo-Inverse}
+
+  Let's use this equation:
+  \[
+  v^* = A^\dag\vec{b} = \mbox{argmin}_v\Vert\vec{b}-A\vec{v}\Vert^2
+  \]
+  to solve for the pseudo-inverse.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Solving for the Pseudo-Inverse}
+  \begin{align*}
+    A^\dag\vec{b} &= \mbox{argmin}_v\Vert\vec{b}-A\vec{v}\Vert^2\\
+    &= \mbox{argmin}_v\left(\vec{b}-A\vec{v}\right)^T\left(\vec{b}-A\vec{v}\right)\\
+    &= \mbox{argmin}_v\left(\vec{b}^T\vec{b}-2\vec{v}^TA^T\vec{b}+\vec{v}^TA^TA\vec{v}\right)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Solving for the Pseudo-Inverse}
+  \begin{align*}
+    A^\dag\vec{b}= \mbox{argmin}_v\left(\vec{b}^T\vec{b}-2\vec{v}^TA^T\vec{b}+\vec{v}^TA^TA\vec{v}\right)
+  \end{align*}
+  If we differentiate the quantity in parentheses, and set the derivative to zero, we get
+  \begin{align*}
+    \vec{0} &= -2A^T\vec{b}+2A^TA\vec{v}
+  \end{align*}
+  Assume that the columns of $A$ are linearly independent; then $A^TA$
+  is invertible, and so the solution is
+  \[
+  \vec{v} = (A^TA)^{-1}A^T\vec{b}
+  \]
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Summary]{Summary}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Summary: Optical Flow}
+
+  \begin{itemize}
+    \item Optical flow is the vector field, $\vec{v}(t,r,c)$, as a function of
+      pixel position and frame number.
+    \item It is computed by assuming that the only changes to an image
+      are the ones caused by motion, so that
+      \[
+      f(t+\Delta t,r+\Delta r,c+\Delta c) = f(t,r,c)
+      \]
+    \item From that assumption, we get the optical flow equation:
+      \[
+      -\frac{\partial f}{\partial t} =\vec{v}^T\nabla f
+      \]
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Lucas-Kanade Algorithm}
+
+  Lucas-Kanade assumes that there is a $(2W+1)\times(2W+1)$ block of
+  pixels that all move together, so that $\vec{b}=A\vec{v}$, where
+  \[
+  \vec{b} = -\left[\begin{array}{c}
+      \frac{\partial f[t,r-W,c-W]}{\partial t}\\
+      \vdots\\
+      \frac{\partial f[t,r+W,c+W]}{\partial t}
+    \end{array}\right],~~~
+  A=\left[\begin{array}{cc}
+      \frac{\partial f[t,r-W,c-W]}{\partial c}&\frac{\partial f[t,r-W,c-W]}{\partial r}\\
+      \vdots\\
+      \frac{\partial f[t,r+W,c+W]}{\partial c}&\frac{\partial f[t,r+W,c+W]}{\partial r}
+    \end{array}\right]
+  \]
+  \[
+  \vec{v}=\left[\begin{array}{c}v_c[t,r,c]\\ v_r[t,r,c]\end{array}\right]
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Pseudo-Inverse}
+
+  The Lucas-Kanade equation cannot be solved exactly, because it is
+  $(2W+1)$ equations in only two unknowns.  But we can find the
+  minimum-squared error solution, which is
+
+  \[
+  v^*[t,r,c] = A^\dag\vec{b} = (A^TA)^{-1}A^T\vec{b}
+  \]
+\end{frame}
+
+
+\end{document}
+
