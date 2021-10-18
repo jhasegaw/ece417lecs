@@ -1,0 +1,486 @@
+\documentclass{beamer}
+\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc}
+\newcommand{\argmax}{\operatornamewithlimits{argmax}}
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\mode<presentation>{\usetheme{Frankfurt}}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 13: Expectation Maximization}
+\author{Mark Hasegawa-Johnson\\All content~\href{https://creativecommons.org/licenses/by/4.0/}{CC-BY 4.0} unless otherwise specified.}
+\date{ECE 417: Multimedia Signal Processing, Fall 2021}  
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Bayesian]{Review: Bayesian Classifiers}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Bayesian Classifiers}
+  
+  A Bayesian classifier chooses a label, $y\in\left\{0\ldots N_Y-1\right\}$, that has
+    the minimum probability of error given an observation,
+    $\vec{x}\in\Re^D$:
+  \begin{align*}
+    \hat{y} &= \argmin_{y} \Pr\left\{Y \ne y|\vec{X}=\vec{x}\right\}\\
+    &= \argmax_{y} \Pr\left\{Y = y|\vec{X}=\vec{x}\right\}\\
+    &= \argmax_{y} p_{Y|\vec{X}}(y|\vec{x})\\
+    &= \argmax_{y} p_Y(\hat{y}) p_{\vec{X}|Y}(\vec{x}|y)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The four Bayesian probabilities}
+
+  \begin{itemize}
+  \item The {\bf posterior} and {\bf evidence},
+    $p_{Y|\vec{X}}(y|\vec{x})$ and $p_{\vec{X}}(\vec{x})$, can only be learned
+    if you have lots and lots of training  data.
+  \item The {\bf prior}, $p_Y(y)$, is very easy to learn.
+  \item The {\bf likelihood}, $p_{\vec{X}|Y}(\vec{x}|y)$, is
+    easier to learn than the posterior, but still somewhat challenging.
+    This lecture is about learning the likelihood.
+  \end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[ML]{Maximum Likelihood Parametric Estimation}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Training Data}
+
+  A {\bf training dataset} is a set of examples, ${\mathcal
+    D}=\left\{(\vec{x}_0,y_0),\ldots,(\vec{x}_{n-1},y_{n-1})\right\}$, from
+  which you want to learn $p_{\vec{X}|Y}(\vec{x}|y)$.
+  
+\end{frame}
+
+\begin{frame}
+  \frametitle{Parametric Estimation}
+
+  {\bf Parametric estimation} means we assume that
+  $p_{\vec{X}|Y}(\vec{x}|y)$ has some parametric functional form, with
+  some learnable parameters, $\Theta$.  For example, in a Gaussian classifier,
+  \[
+  \Theta =
+  \left\{\vec\mu_{y},\Sigma_{y}:y\in\left\{0\ldots N_Y-1\right\}\right\}
+  \]
+  and the parametric form is
+  \[
+  p_{\vec{X}|Y}(\vec{x}|y)=
+  \frac{1}{(2\pi)^{D/2}|\Sigma_y|^{1/2}}
+  e^{-\frac{1}{2}(\vec{x}-\vec\mu_y)^T\Sigma_y^{-1}(\vec{x}-\vec\mu_y)}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Maximum Likelihood Estimation}
+
+  {\bf Maximum likelihood estimation} finds the parameters that
+  maximize the likelihood of the data.
+  \begin{displaymath}
+    \hat{\Theta}_{ML} = \argmax p\left({\mathcal D}|\Theta\right)
+  \end{displaymath}
+  Usually we assume that the data are sampled independently and
+  identically distributed, so that
+  \begin{align*}
+    \hat{\Theta}_{ML} &= \argmax \prod_{i=0}^{n-1}p_{\vec{X}|Y}(\vec{x}_i|y_i)\\
+    &= \argmax \sum_{i=0}^{n-1}\ln p_{\vec{X}|Y}(\vec{x}_i|y_i)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Gaussians}
+
+  For example, let's assume Gaussian likelihoods:
+  \begin{align*}
+    \hat{\Theta}_{ML} &= \argmax \prod_{i=0}^{n-1}p_{\vec{X}|Y}(\vec{x}_i|y_i)\\
+    &= \argmax \sum_{i=0}^{n-1}\ln p_{\vec{X}|Y}(\vec{x}_i|y_i)\\
+    &= \argmin \sum_{i=0}^{n-1}\left(\ln|\Sigma_{y_i}|
+    +(\vec{x}_i-\vec\mu_{y_i})^T\Sigma_{y_i}^{-1}(\vec{x}_i-\vec\mu_{y_i})\right)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Gaussians}
+  \begin{align*}
+    \hat{\Theta}_{ML}
+    &= \argmin \sum_{i=0}^{n-1}\left(\ln|\Sigma_{y_i}|
+    +(\vec{x}_i-\vec\mu_{y_i})^T\Sigma_{y_i}^{-1}(\vec{x}_i-\vec\mu_{y_i})\right)
+  \end{align*}
+  If we differentiate, and set the derivative to zero, we get
+  \begin{align*}
+    \hat\mu_{y,ML} &= \frac{1}{n_y}\sum_{i:y_i=y}\vec{x}_i\\
+    \hat\Sigma_{y,ML} &= \frac{1}{n_y}\sum_{i:y_i=y}(\vec{x}_i-\vec\mu_y)(\vec{x}_i-\vec\mu_y)^T
+  \end{align*}
+  where $n_y$ is the number of tokens from class $y_i=y$.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Hidden]{Hidden or Unobserved Variables}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Hidden or Unobserved Variables}
+
+  Many real-world problems have {\bf hidden} or {\bf unobserved}
+  random variables.
+
+  If there are hidden variables, we can imagine that the training
+  dataset is divided into two parts: ${\mathcal D}_v$ is the visible
+  part (the variables whose values we know), and ${\mathcal D}_h$ is
+  the hidden part (the variables we don't know).
+
+  ML estimation now needs to find
+  \begin{align*}
+    \hat\Theta_{ML}
+    &= \argmax_\Theta p\left({\mathcal D}_v|\Theta\right)\\
+    &= \argmax_\Theta\sum_{{\mathcal D}_h}p\left({\mathcal D}_v,{\mathcal D}_h|\Theta\right)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Missing Data}
+
+  For example, suppose that the training dataset only has two tokens,
+  ${\mathcal D}=\left\{\vec{x}_0,\vec{x}_1\right\}$.  Each vector
+  should contain $D$ measurements,
+  $\vec{x}_{i}=[x_{i,0},\ldots,x_{i,D-1}]^T$.  Unfortunately, due to
+  mechanical equipment failure, we are missing the measurements of
+  $x_{0,16}$ and $x_{1,2}$.
+
+  The visible and hidden training  datasets are:
+  \begin{align*}
+    {\mathcal D}_v &= \left\{x_{0,0},\ldots,x_{0,15},x_{0,17},\ldots,x_{1,1},x_{1,3},\ldots,x_{1,D-1}\right\}\\
+    {\mathcal D}_h &= \left\{x_{0,16},x_{1,2}\right\}
+  \end{align*}
+  \ldots and the ML parameters are:
+  \begin{align*}
+    \hat\Theta_{ML}
+    &= \argmax_\Theta\int\int
+    \Pr\left\{{\mathcal D}|\Theta\right\} dx_{0,16}dx_{1,2}
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Mixture Models}
+
+  The more relevant case (the reason we really care about the
+  expectation maximization algorithm) is the mixture-density
+  situation, for example, Gaussian mixture models.
+
+  Remember the pdf model for a GMM:
+  \[
+  p_{\vec{X}|Y}(\vec{x}|y) = \sum_{k=0}^{N_K-1}c_{y,k}{\mathcal N}(\vec{x}|\vec\mu_{y,k},\Sigma_{y,k})
+  \]
+  \ldots where, in order to make sure that $1=\int
+  p_{\vec{X}|Y}(\vec{x}|y)d\vec{x}$, we have to make sure that
+  \[
+  c_{y,k}\ge 0~~~\mbox{and}~~~\sum_k c_{y,k}=1
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Mixture Models}
+
+  \[
+  p_{\vec{X}|Y}(\vec{x}|y) = \sum_{k=0}^{N_K-1}c_{y,k}{\mathcal N}(\vec{x}|\vec\mu_{y,k},\Sigma_{y,k})
+  \]
+
+  Think about what's going on when we generate $\vec{x}_i$ from $y_i$:
+  \begin{itemize}
+  \item First, we pick a cluster $k_i$, according to the probability distribution
+    \[
+    p_{K|Y}(k|y) = c_{y,k}~~\mbox{where}~~c_{y,k}\ge 0~~\mbox{and}~~\sum_k c_{y,k}=1
+    \]
+  \item  Second, we generate the observation vector from the chosen cluster:
+    \[
+    p_{\vec{X}|K,Y}(\vec{x}|k,y) = {\mathcal N}(\vec{x}|\vec\mu_{y,k},\Sigma_{y,k})
+    \]
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Mixture Models}
+
+  We don't have any labels to tell us which cluster corresponds to each training token, so the
+  cluster labels are hidden.
+  
+  The visible and hidden training  datasets are:
+  \begin{align*}
+    {\mathcal D}_v &= \left\{(\vec{x}_0,y_0),\ldots,(\vec{x}_{n-1},y_{n-1})\right\}\\
+    {\mathcal D}_h &= \left\{k_0,\ldots,k_{n-1}\right\}
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Mixture Models}
+
+  The maximum likelihood parameters are:
+  \begin{align*}
+    \hat\Theta_{ML}
+    &= \argmax_\Theta\sum_{{\mathcal D}_h}\Pr\left\{{\mathcal D}_v,{\mathcal D}_h|\Theta\right\}\\
+    &= \argmax\sum_{i=0}^{n-1}\ln
+    \sum_{k=0}^{N_K-1}c_{y_i,k}{\mathcal N}(\vec{x}_i|\vec\mu_{y_i,k},\Sigma_{y_i,k})
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Problem with Missing Data}
+
+  \begin{align*}
+    \hat\Theta_{ML}
+    &= \argmax_\Theta\sum_{{\mathcal D}_h}\Pr\left\{{\mathcal D}_v,{\mathcal D}_h|\Theta\right\}\\
+    &= \argmax\sum_{i=0}^{n-1}\ln
+    \sum_{k=0}^{N_K-1}c_{y_i,k}{\mathcal N}(\vec{x}_i|\vec\mu_{y_i,k},\Sigma_{y_i,k})
+  \end{align*}
+  The problem with mixture models is the same as the problem with any type of missing data:
+  \begin{itemize}
+  \item The log of a sum cannot be simplified.
+  \item Therefore, differentiating the log of a sum usually results in
+    a complicated equation that has no closed-form solution.
+  \item In fact, the solution is usually not even unique.
+  \end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[EM]{The Expectation-Maximization Algorithm}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{The Problem with Missing Data}
+
+  \begin{itemize}
+  \item Standard ML estimation works really well because we use
+    logarithms to turn the product  into a sum:
+    \begin{align*}
+      \hat{\Theta}_{ML} &= \argmax \prod_{i=0}^{n-1}p_{\vec{X}|Y}(\vec{x}_i|y_i)\\
+      &= \argmax \sum_{i=0}^{n-1}\ln p_{\vec{X}|Y}(\vec{x}_i|y_i)
+    \end{align*}
+  \item But suppose that you also need to estimate some hidden variable, $k$.
+    Then you need a sum of logs of sums:
+    \begin{align*}
+      \hat{\Theta}_{ML} &= \argmax \prod_{i=0}^{n-1}\sum_{k} p_{\vec{X},K|Y}(\vec{x}_i,k|y_i)\\
+      &= \argmax \sum_{i=0}^{n-1}\ln\sum_k p_{\vec{X},K|Y}(\vec{x}_i,k|y_i)
+    \end{align*}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Problem with Missing Data}
+
+  Let's write it like this:
+  \begin{displaymath}
+    \hat\Theta_{ML} = \argmax {\mathcal L}(\Theta),
+  \end{displaymath}
+  where ${\mathcal L}(\Theta)$ is the log likelihood of the training
+  data:
+  \begin{align*}
+    {\mathcal L}(\Theta)
+    &= \ln p\left({\mathcal D}_v|\Theta\right)\\
+    &= \ln\sum_{{\mathcal D}_h}p\left({\mathcal D}_v,{\mathcal D}_h|\Theta\right)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Solution: The EM Inequality}
+
+  Expectation Maximization uses the idea that the {\bf log of a sum}
+  is greater than or equal to the {\bf average of the logs}.  For any
+  set of positive numbers $x(k)$, if you can define a pmf such that
+  $\sum_k p(k)=1$, then
+  \begin{displaymath}
+    \ln\sum_k x(k) \ge \ln\max_k x(k)  \ge \sum_k p(k)\ln x(k)
+  \end{displaymath}
+  \centerline{\includegraphics[width=\textwidth]{exp/eminequality.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Solution: The EM Inequality}
+
+  Let's make the following definitions:
+  \begin{align*}
+    x({\mathcal D}_h)  &= p({\mathcal D}_v,{\mathcal D}_h|\Theta)\\
+    p({\mathcal D}_h)  &= p({\mathcal D}_h|{\mathcal D}_v,\hat\Theta),
+  \end{align*}
+  where $\Theta$ and $\hat\Theta$ can be any two estimates of
+  the parameters.  Then the EM inequality says
+  \begin{displaymath}
+    \ln\sum_k x(k) \ge \sum_k p(k)\ln x(k)
+  \end{displaymath}
+  or 
+  \begin{displaymath}
+    \ln\sum_{{\mathcal D}_h}p({\mathcal D}_v,{\mathcal D}_h|\Theta)
+    \ge
+    \sum_{{\mathcal D}_h} p({\mathcal D}_h|{\mathcal D}_v,\hat\Theta)
+    \ln p({\mathcal D}_v,{\mathcal D}_h|\Theta)
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Q Function}
+
+  The name ``expectation'' in ``expectation maximization'' comes from
+  the lower bound on the previous slide.  That lower bound is usually
+  called the ``Q function.''  It looks like this:
+  \begin{align*}
+    Q(\Theta,\hat\Theta) &=
+    \sum_{{\mathcal D}_h} p({\mathcal D}_h|{\mathcal D}_v,\hat\Theta)
+    \ln p({\mathcal D}_v,{\mathcal D}_h|\Theta)\\
+    &= E\left[\ln p({\mathcal D}_v,{\mathcal D}_h|\Theta)\left|{\mathcal D}_v,\hat\theta\right.\right]
+  \end{align*}
+  The word ``maximization'' comes from the following idea:
+  since ${\mathcal L}(\Theta)\ge Q(\Theta,\hat\Theta)$,
+  how about if we choose
+  \[
+  \Theta^* = \argmax_\Theta Q(\Theta,\hat\Theta)
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Expectation Maximization Algorithm}
+
+  The expectation maximization algorithm has the following steps:
+  \begin{description}
+  \item[Initialize:]~Find the best initial guess, $\Theta^*$, that you can.
+  \item[Iterate:]~Repeat the following steps.  Set $\hat\Theta=\Theta^*$, then
+    \begin{description}
+    \item[E-Step:]~Compute the posterior probabilities of the hidden variables
+      \[
+      p({\mathcal D}_h|{\mathcal D}_v,\hat\Theta)
+      \]
+    \item[M-Step:]~Find new values of $\Theta$ that maximize $Q(\Theta,\hat\Theta)$:
+      \[
+      \Theta^* = \argmax_\Theta Q(\Theta,\hat\Theta)
+      \]
+    \end{description}
+  \item[Terminate:]~If $\Theta^*$ does not change from one iteration to the next,
+    it means you have reached a local maximum of both $Q$ and ${\mathcal L}$:
+    \[
+    \Theta^* = \argmax_\Theta {\mathcal L}(\Theta)
+    = \argmax_\Theta Q(\Theta,\Theta)
+    \]
+  \end{description}
+\end{frame}
+  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[GMM]{EM for Gaussian Mixture Models}
+\setcounter{subsection}{1}
+
+
+\begin{frame}
+  \frametitle{EM for Gaussian Mixture Models}
+
+  For a Gaussian mixture model,
+  \begin{itemize}
+  \item The observed dataset includes the labels, and the feature vectors:
+    \begin{displaymath}
+      {\mathcal D}_v = \left\{(\vec{x}_0,y_0),\ldots,(\vec{x}_{n-1},y_{n-1})\right\}
+    \end{displaymath}
+  \item The hidden dataset is the cluster identity labels:
+    \begin{displaymath}
+      {\mathcal D}_h = \left\{k_0,\ldots,k_{n-1}\right\}
+    \end{displaymath}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{E-Step for Gaussian Mixture Models}
+
+  For a Gaussian mixture model, the E-step probability is
+  \begin{align*}
+    p({\mathcal D}_h|{\mathcal D}_v,\Theta)
+    &= p_{K|\vec{X},Y}(k|\vec{x},y)\\
+    &= \frac{p_{K|Y}(k|y)p_{\vec{X}|K,Y}(\vec{x}|k,y)}{\sum_\ell p_{K|Y}(\ell|y)p_{\vec{X}|K,Y}(\vec{x}|\ell,y)}
+  \end{align*}
+  In order to solve the last equation, we make these substitutions:
+  \begin{align*}
+    p_{K|Y}(k|y) &= c_{y,k}\\
+    p_{\vec{X}|Y,K}(\vec{x}|y,k) &= {\mathcal N}(\vec{x}|\vec\mu_{y,k},\Sigma_{y,k})
+  \end{align*}
+  which gives us something that's often called the ``gamma probability:''
+  \begin{displaymath}
+  p_{K|\vec{X},Y}(k|\vec{x}_i,y_i) = \gamma_i(k) = 
+  \frac{c_{y_i,k}{\mathcal N}(\vec{x}_i|\vec\mu_{y_i,k},\Sigma_{y_i,k})}{\sum_\ell c_{y_i,\ell}{\mathcal N}(\vec{x}_i|\vec\mu_{y_i,\ell},\Sigma_{y_i,\ell})}
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{M-Step for Gaussian Mixture Models}
+
+  For a Gaussian mixture model, the Q function is
+  \begin{align*}
+    E_{\mathcal D_h}\left[\ln p({\mathcal D}_h,{\mathcal D}_v,\Theta)\right]
+    &= E_k\left[ \ln p_{K,\vec{X},Y}(k,\vec{x},y)\right]\\
+    &= E_k\left[\ln p_Y(y)+ \ln c_{y,k} + \ln{\mathcal N}(\vec{x}|\vec\mu_{y,k},\Sigma_{y,k})\right]
+  \end{align*}
+  \begin{align*}
+    &= \ln p_Y(y)-\frac{D}{2}\ln(2\pi)\\
+    &+ \sum_k \gamma_i(k)\left(\ln c_{y,k} -\frac{1}{2}
+    \left(\ln|\Sigma_{y,k}|+(\vec{x}_i-\vec\mu_{y,k})^T\Sigma_y^{-1}(\vec{x}_i-\vec\mu_{y,k})\right)\right)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{M-Step for Gaussian Mixture Models}
+
+  Maximizing the Q function gives
+  \begin{align*}
+    p_Y(y) &= \frac{n_y}{n},~~~~~    c_{y,k} = \frac{n_{y,k}}{n_y},\\
+    \vec\mu_{y,k} &=\frac{1}{n_{y,k}}\sum_{i=0}^{n-1}\gamma_i(k)\vec{x}_i,\\
+    \Sigma_{y,k} &=
+    \frac{1}{n_{y,k}}\sum_{i=0}^{n-1}\gamma_i(k)(\vec{x}_i-\vec\mu_{y,k})(\vec{x}_i-\vec\mu_{y,k})^T,
+  \end{align*}
+  where the ``soft counts'' are the sums of the gamma probabilities, across all tokens
+  \begin{align*}
+    n_{y,k} &= \sum_{i:y_i=y}\gamma_{i}(k)
+  \end{align*}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\section{Summary}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Summary}
+
+  \begin{itemize}
+  \item Maximum likelihood estimation finds model parameters that
+    maximize the log likelihood:
+    \[
+    \Theta = \argmax{\mathcal L}(\Theta)
+    \]
+  \item Expectation maximization finds model parameters that maximize the
+    expected log likelihood:
+    \[
+    \Theta = \argmax Q(\Theta,\hat\Theta)
+    \]
+  \item Applying EM to a GMM gives:
+    \begin{align*}
+      c_{y,k} &= \frac{n_{y,k}}{n_y}\\
+      \vec\mu_{y,k} &=\frac{1}{n_{y,k}}\sum_{i=0}^{n-1}\gamma_i(k)\vec{x}_i\\
+      \Sigma_{y,k} &=
+      \frac{1}{n_{y,k}}\sum_{i=0}^{n-1}\gamma_i(k)(\vec{x}_i-\vec\mu_{y,k})(\vec{x}_i-\vec\mu_{y,k})^T
+    \end{align*}
+  \end{itemize}
+\end{frame}
+
+
+
+\end{document}

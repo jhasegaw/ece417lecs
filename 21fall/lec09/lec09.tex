@@ -1,0 +1,385 @@
+\documentclass{beamer}
+\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc,dsp,chains}
+\newcommand{\argmax}{\operatornamewithlimits{argmax}}
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\mode<presentation>{\usetheme{Frankfurt}}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 9: Exam 1 Review}
+\author{Mark Hasegawa-Johnson}
+\date{ECE 417: Multimedia Signal Processing, Fall 2021}  
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Topics]{Topics}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Topics}
+
+  \begin{enumerate}
+  \item HW1: Signal Processing Review
+  \item MP1: LPC
+  \item HW2: Linear Algebra 
+  \item MP2: Image Processing \& Optical Flow
+  \end{enumerate}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Signal Processing]{Signal Processing}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{DTFT}
+
+  \[
+  X(\omega) = \sum_{n=-\infty}^\infty x[n]e^{-j\omega n}
+  \]
+  \[
+  x[n] = \frac{1}{2\pi} \int_{-\pi}^\pi X(\omega)e^{j\omega n}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Frequency Response}
+
+  \[
+  Y(\omega) = H(\omega)X(\omega)
+  \]
+  \[
+  y[n] = h[n]\ast x[n]
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Z Transform}
+
+  \[
+  \sum_{m=0}^{M-1} b_m x[n-m] = \sum_{k=0}^{N-1}a_ky[n-k]
+  \]
+  \[
+  H(z) = \frac{\sum_{m=0}^{M-1}b_m z^{-m}}{\sum_{k=0}^{N-1}a_k z^{-k}}
+  \]
+
+\end{frame}
+
+\begin{frame}
+  \frametitle{Frequency Response}
+
+  \[
+  H(\omega) = H(z=e^{j\omega})
+  \]
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[LPC]{LPC}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{All-Pole Filter}
+
+  \begin{align*}
+    H(z) &= \frac{1}{1-\sum_{k=1}^{N}a_k z^{-k}}\\
+    &= \frac{1}{\prod_{k=1}^{N}\left(1-p_k z^{-1}\right)}\\
+    &= \sum_{k=1}^{N}\frac{C_k}{1-p_k z^{-1}}
+  \end{align*}
+  \[
+  h[n] = \sum_{k=1}^N C_k p_k^n u[n]
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Linear Predictive Synthesis Filter}
+
+  \centerline{
+    \begin{tikzpicture}
+      \node[dspnodeopen,dsp/label=right] (y) at (6,1.5) {$s[n]$};
+      \node[dspadder] (a0) at (3,1.5) {};
+      \node[dspadder] (a1) at (3,0.5) {} edge[dspconn](a0);
+      \node[dspadder] (a2) at (3,-0.5) {} edge[dspconn](a1);
+      \node[dspadder] (a3) at (3,-1.5) {} edge[dspconn](a2);
+      \node[coordinate] (a4) at (3,-2.5) {} edge[dspconn](a3);
+      \node[dspmixer,dsp/label=above] (m4) at (4,-2.5) {$a_4$} edge[dspline] (a4);
+      \node[coordinate] (s4) at (5,-2.5) {} edge[dspline](m4);
+      \node[dspsquare] (d4) at (5,-2) {$z^{-1}$} edge[dspline](s4);
+      \node[dspmixer,dsp/label=above] (m3) at (4,-1.5) {$a_3$} edge[dspconn] (a3);
+      \node[dspnodefull] (s3) at (5,-1.5) {} edge[dspconn](d4) edge[dspline](m3);
+      \node[dspsquare] (d3) at (5,-1) {$z^{-1}$} edge[dspline](s3);
+      \node[dspmixer,dsp/label=above] (m2) at (4,-0.5) {$a_2$} edge[dspconn] (a2);
+      \node[dspnodefull] (s2) at (5,-0.5) {} edge[dspconn](d3) edge[dspline](m2);
+      \node[dspsquare] (d2) at (5,0) {$z^{-1}$} edge[dspline](s2);
+      \node[dspmixer,dsp/label=above] (m1) at (4,0.5) {$a_1$} edge[dspconn] (a1);
+      \node[dspnodefull] (s1) at (5,+0.5) {} edge[dspconn](d2) edge[dspline](m1);
+      \node[dspsquare] (d1) at (5,1) {$z^{-1}$} edge[dspline](s1);
+      \node[dspnodefull](ysplit) at (5,1.5){} edge[dspconn](y) edge[dspconn](d1) edge[dspline](a0);
+      \node[dspnodeopen,dsp/label=left] (x) at (2,1.5) {$e[n]$} edge[dspconn](a0);
+  \end{tikzpicture}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Linear Predictive Analysis Filter}
+
+  \centerline{
+    \begin{tikzpicture}
+      \node[dspnodeopen,dsp/label=right] (y) at (8,1.5) {$e[n]$};
+      \node[dspadder] (a0) at (7,1.5) {} edge[dspconn](y);
+      \node[dspadder] (a1) at (7,0.5) {} edge[dspconn](a0);
+      \node[dspadder] (a2) at (7,-0.5) {} edge[dspconn](a1);
+      \node[dspadder] (a3) at (7,-1.5) {} edge[dspconn](a2);
+      \node[coordinate] (a4) at (7,-2.5) {} edge[dspconn](a3);
+      \node[dspmixer,dsp/label=above] (m4) at (6,-2.5) {$-a_4$} edge[dspline] (a4);
+      \node[coordinate] (s4) at (5,-2.5) {} edge[dspline](m4);
+      \node[dspsquare] (d4) at (5,-2) {$z^{-1}$} edge[dspline](s4);
+      \node[dspmixer,dsp/label=above] (m3) at (6,-1.5) {$-a_3$} edge[dspconn] (a3);
+      \node[dspnodefull] (s3) at (5,-1.5) {} edge[dspconn](d4) edge[dspline](m3);
+      \node[dspsquare] (d3) at (5,-1) {$z^{-1}$} edge[dspline](s3);
+      \node[dspmixer,dsp/label=above] (m2) at (6,-0.5) {$-a_2$} edge[dspconn] (a2);
+      \node[dspnodefull] (s2) at (5,-0.5) {} edge[dspconn](d3) edge[dspline](m2);
+      \node[dspsquare] (d2) at (5,0) {$z^{-1}$} edge[dspline](s2);
+      \node[dspmixer,dsp/label=above] (m1) at (6,0.5) {$-a_1$} edge[dspconn] (a1);
+      \node[dspnodefull] (s1) at (5,+0.5) {} edge[dspconn](d2) edge[dspline](m1);
+      \node[dspsquare] (d1) at (5,1) {$z^{-1}$} edge[dspline](s1);
+      \node[dspnodefull](ysplit) at (5,1.5){} edge[dspconn](a0) edge[dspconn](d1);
+      \node[dspnodeopen,dsp/label=left] (x) at (2,1.5) {$s[n]$} edge[dspconn](ysplit);
+  \end{tikzpicture}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Finding the Linear Predictive Coefficients}
+
+  Formulate the problem like this: we want to find $a_k$ in
+  order to minimize:
+  \begin{displaymath}
+    {\mathcal E}=\sum_{n=-\infty}^\infty e^2[n] =
+    \sum_{n=-\infty}^\infty\left(s[n]-\sum_{m=1}^p a_m s[n-m]\right)^2
+  \end{displaymath}
+  If we set $d{\mathcal E}/da_k=0$, we get
+  \begin{displaymath}
+    0 = 
+    \sum_{n=-\infty}^\infty \left(s[n]-\sum_{m=1}^pa_m s[n-m]\right)s[n-k] =
+    \sum_{n=-\infty}^\infty e[n]s[n-k]
+  \end{displaymath}
+  which we sometimes write as $e[n]\perp s[n-k]$
+\end{frame}
+
+\begin{frame}
+  \frametitle{Autocorrelation}
+
+  In order to write the solution more easily, let's define something
+  called the ``autocorrelation,'' $R[m]$:
+  \begin{displaymath}
+    R[m] = \sum_{n=-\infty}^\infty s[n]s[n-m]
+  \end{displaymath}
+  In terms of the autocorrelation, the orthogonality equations are
+  \begin{displaymath}
+    0 = R[k] -\sum_{m=1}^pa_m R[k-m]~~~\forall~1\le k\le p
+  \end{displaymath}
+  which can be re-arranged as
+  \begin{displaymath}
+    R[k] = \sum_{m=1}^pa_m R[k-m]~~~\forall~1\le k\le p
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Matrices}
+
+  Since we have $p$ linear equations in $p$ unknowns, let's create matrices:
+  \begin{displaymath}
+    \vec\gamma = \left[\begin{array}{c}R[1]\\ R[2]\\\vdots\\ R[p]\end{array}\right],~~~
+    R = \left[\begin{array}{cccc} R[0] & R[1] &  \cdots & R[p-1] \\
+        R[1] & R[0] & \cdots & R[p-2] \\
+        \vdots & \vdots & \ddots & \vdots \\
+        R[p-1] & R[p-2] & \cdots & R[0] \end{array}\right].
+  \end{displaymath}
+  Then the normal equations become
+  \begin{displaymath}
+    \vec\gamma = R \vec{a}
+  \end{displaymath}
+  and their solution is
+  \begin{displaymath}
+    \vec{a} = R^{-1} \vec\gamma
+  \end{displaymath}  
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Linear Algebra]{Linear Algebra}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Linear Algebra Review}
+  \begin{itemize}
+  \item A linear transform, $A$, maps vectors in space $\vec{x}$ to vectors in space $\vec{y}$.
+  \item The determinant, $|A|$, tells you how the volume of the unit
+    sphere is scaled by the linear transform.
+  \item Every $D\times D$ linear transform has $D$ eigenvalues, which
+    are the roots of the equation $|A-\lambda I|=0$.
+  \item Left and right eigenvectors of a matrix are either orthogonal
+    ($\vec{u}_i^T\vec{v}_j=0$) or share the same eigenvalue ($\kappa_i=\lambda_j$).
+  \item For a symmetric matrix, the left and right eigenvectors are
+    the same.  If the eigenvalues are distinct and real, then:
+    \[
+    A=V\Lambda V^T,~~~\Lambda = V^TAV,~~~VV^T=V^TV=I
+    \]
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Pseudo-Inverse}
+
+   If $A$ is a tall thin matrix, then there is usually no vector
+   $\vec{v}$ that solves $\vec{b}=A\vec{v}$, but $\vec{v}=A^\dag
+   \vec{b}$ is the vector that comes closest, in the sense that
+   \[
+   A^\dag\vec{b} = \mbox{argmin}_{\vec{v}}\Vert\vec{b}-A\vec{v}\Vert^2
+   \]
+   If we differentiate the norm, and set the derivative to zero, we get
+   \[
+   A^\dag = (A^TA)^{-1}A^T
+   \]
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Images]{Image Processing}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{What is a Multidimensional Signal?}
+
+  A multidimensional signal is one that can be indexed in many
+  directions.  For example, a typical video that you would play on
+  your laptop is a 4-dimensional signal, $x[k,t,r,c]$:
+  \begin{itemize}
+  \item $k$ indexes color ($k=0$ for red, $k=1$ for green, $k=2$ for blue)
+  \item $t$ is the frame index
+  \item $r$ is the row index
+  \item $c$ is the column index
+  \end{itemize}
+  If there are 3 colors, 30 frames/second, 480 rows and 640 columns,
+  with one byte per pixel, then that's $3\times 30\times 480\times
+  640=27684000$ bytes/sec.
+\end{frame}
+  
+\begin{frame}
+  \frametitle{Multidimensional Convolution}
+
+  Any linear, shift-invariant system can be implemented as a
+  convolution.  2D convolution is defined as
+  \begin{align*}
+    y[n_1,n_2] &= x[n_1,n_2]\ast h[n_1,n_2]\\
+    &= \sum_{m_1=-\infty}^\infty\sum_{m_2=-\infty}^\infty x[m_1,m_2]h[n_1-m_1,n_2-m_2]
+  \end{align*}
+  The Fourier transform of convoluton is multiplication:
+  \[
+  y[\vec{n}]=x[\vec{n}]\ast h[\vec{n}] \Leftrightarrow Y(\vec\omega)=H(\vec\omega)X(\vec\omega)
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Separable Filters}
+  A filter $h[n_1,n_2]$ is called ``separable'' if it can be written as
+  \[
+  h[n_1,n_2] = h_1[n_1]h_2[n_2]
+  \]
+  If a filter is separable, then the computational cost of convolution can be reduced
+  by using separable convolution:
+  \begin{align*}
+    x[n_1,n_2]\ast h[n_1,n_2]
+    &= h_1[n_1] \ast_1 \left(h_2[n_2]\ast_2 x[n_1,n_2]\right)
+  \end{align*}
+  
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Example: Image gradient}
+
+  For example, we can compute image gradient using the filter
+  \[
+  h[n] = 0.5\delta[n+1] - 0.5\delta[n-1]
+  \]
+  then
+  \begin{align*}
+  \frac{\partial f}{\partial n_1} &\approx h[n_1]\ast_1 f[n_1,n_2]\\
+  \frac{\partial f}{\partial n_2} &\approx h[n_2]\ast_2 f[n_1,n_2]
+  \end{align*}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Flow]{Optical Flow}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Optical Flow}
+
+  Definition: {\bf optical flow} is the vector field $\vec{v}(t,r,c)$
+  specifying the current apparent velocity of the pixel at position
+  $(r,c)$.  It depends on motion of (1) the object observed, and (2)
+  the observer.
+  
+  Then the optical flow equation is:
+  \[
+  -\frac{\partial f}{\partial t} =(\nabla f)^T\vec{v}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Lucas-Kanade Algorithm}
+
+  The Lucas-Kanade algorithm solves the equation
+  \[\vec{b}=A\vec{v} \]
+  where
+  \[
+  \vec{b} = -\left[\begin{array}{c}
+      \frac{\partial f[t,r,c]}{\partial t}\\
+      \vdots\\
+      \frac{\partial f[t,r+H-1,c+W-1]}{\partial t}
+    \end{array}\right],~~~
+  \vec{v}=\left[\begin{array}{c}v_c[t,r,c]\\ v_r[t,r,c]\end{array}\right]
+  \]
+  \[
+  A=\left[\begin{array}{cc}
+      \frac{\partial f[t,r,c]}{\partial c}&\frac{\partial f[t,r,c]}{\partial r}\\
+      \vdots\\
+      \frac{\partial f[t,r+H-1,c+W-1]}{\partial c}&\frac{\partial f[t,r+H-1,c+W-1]}{\partial r}
+    \end{array}\right]
+  \]
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Summary]{Summary}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Summary}
+  \begin{enumerate}
+  \item HW1: Signal Processing Review
+  \item MP1: LPC
+  \item HW2: Linear Algebra  
+  \item MP2: Image Processing \& Optical Flow
+  \end{enumerate}
+
+\end{frame}
+
+
+\end{document}
+

@@ -274,19 +274,25 @@
   with this equation:
   \[
   -\left[\begin{array}{c}
-      \frac{\partial f[t,r-W,c-W]}{\partial t}\\
+      \frac{\partial f[t,r,c]}{\partial t}\\
       \vdots\\
-      \frac{\partial f[t,r+W,c+W]}{\partial t}
+      \frac{\partial f[t,r,c+W]}{\partial t}\\
+      \frac{\partial f[t,r+1,c]}{\partial t}\\
+      \vdots\\
+      \frac{\partial f[t,r+H,c+W]}{\partial t}
     \end{array}\right]
   =
   \left[\begin{array}{cc}
-      \frac{\partial f[t,r-W,c-W]}{\partial c}&\frac{\partial f[t,r-W,c-W]}{\partial r}\\
+      \frac{\partial f[t,r,c]}{\partial c}&\frac{\partial f[t,r,c]}{\partial r}\\
       \vdots\\
-      \frac{\partial f[t,r+W,c+W]}{\partial c}&\frac{\partial f[t,r+W,c+W]}{\partial r}
+      \frac{\partial f[t,r,c+W]}{\partial c}&\frac{\partial f[t,r,c+W]}{\partial r}\\
+      \frac{\partial f[t,r+1,c]}{\partial c}&\frac{\partial f[t,r+1,c]}{\partial r}\\
+      \vdots\\
+      \frac{\partial f[t,r+H,c+W]}{\partial c}&\frac{\partial f[t,r+H,c+W]}{\partial r}
     \end{array}\right]
   \left[\begin{array}{c}v_c\\ v_r\end{array}\right]
   \]
-  so that we are averaging over a block of size $(2W+1)\times(2W+1)$ pixels.
+  so that we are averaging over a block of size $H\times W$ pixels.
 \end{frame}
 
 \begin{frame}
@@ -297,14 +303,14 @@
   where
   \[
   \vec{b} = -\left[\begin{array}{c}
-      \frac{\partial f[t,r-W,c-W]}{\partial t}\\
+      \frac{\partial f[t,r,c]}{\partial t}\\
       \vdots\\
-      \frac{\partial f[t,r+W,c+W]}{\partial t}
+      \frac{\partial f[t,r+H,c+W]}{\partial t}
     \end{array}\right],~~~
   A=\left[\begin{array}{cc}
-      \frac{\partial f[t,r-W,c-W]}{\partial c}&\frac{\partial f[t,r-W,c-W]}{\partial r}\\
+      \frac{\partial f[t,r,c]}{\partial c}&\frac{\partial f[t,r,c]}{\partial r}\\
       \vdots\\
-      \frac{\partial f[t,r+W,c+W]}{\partial c}&\frac{\partial f[t,r+W,c+W]}{\partial r}
+      \frac{\partial f[t,r+H,c+W]}{\partial c}&\frac{\partial f[t,r+H,c+W]}{\partial r}
     \end{array}\right]
   \]
   \[
@@ -318,7 +324,7 @@
 
   The Lucas-Kanade algorithm solves the equation
   \[\vec{b}=A\vec{v} \]
-  \ldots but now $A$ is a matrix of size $(2W+1)\times 2$, so it's
+  \ldots but now $A$ is a matrix of size $HW\times 2$, so it's
   still not invertible!  How do we solve that?
 \end{frame}
 
@@ -423,14 +429,14 @@
   pixels that all move together, so that $\vec{b}=A\vec{v}$, where
   \[
   \vec{b} = -\left[\begin{array}{c}
-      \frac{\partial f[t,r-W,c-W]}{\partial t}\\
+      \frac{\partial f[t,r,c]}{\partial t}\\
       \vdots\\
-      \frac{\partial f[t,r+W,c+W]}{\partial t}
+      \frac{\partial f[t,r+H,c+W]}{\partial t}
     \end{array}\right],~~~
   A=\left[\begin{array}{cc}
-      \frac{\partial f[t,r-W,c-W]}{\partial c}&\frac{\partial f[t,r-W,c-W]}{\partial r}\\
+      \frac{\partial f[t,r,c]}{\partial c}&\frac{\partial f[t,r,c]}{\partial r}\\
       \vdots\\
-      \frac{\partial f[t,r+W,c+W]}{\partial c}&\frac{\partial f[t,r+W,c+W]}{\partial r}
+      \frac{\partial f[t,r+H,c+W]}{\partial c}&\frac{\partial f[t,r+H,c+W]}{\partial r}
     \end{array}\right]
   \]
   \[
