@@ -308,7 +308,7 @@
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section[Symmetric]{Eigenvectors of symmetric matrices}
+\section[Symmetric]{Symmetric PSD Matrices}
 \setcounter{subsection}{1}
 
 %\begin{frame}
@@ -340,6 +340,24 @@
 \end{frame}
 
 \begin{frame}
+  \frametitle{Positive semi-definite matrices}
+
+  The matrix $AA^T$ is also positive semi-definite ($AA^T\succeq 0$),
+  meaning that
+  \begin{itemize}
+  \item Its determinant is non-negative, $\mbox{det}(AA^T)\ge 0$, and
+  \item all of its eigenvalues are non-negative, $\lambda_i \ge 0$.
+  \end{itemize}
+  Intuitive explanation (not quite a proof): suppose
+  $A=[a_1,\ldots,a_m]^T$.  Then the elements on the main diagonal are
+  larger than the other elements in the sense that
+  \begin{align*}
+    a_i^Ta_j &= \Vert a_i\Vert\cdot\Vert a_j\Vert\cos\left(\angle(a_i,a_j)\right)\le\Vert a_i\Vert\cdot
+    \Vert a_j\Vert
+  \end{align*}
+\end{frame}
+
+\begin{frame}
   \frametitle{Symmetric matrices: left=right}
 
   Suppose $\Sigma=AA^T$ is any symmetric square matrix: then its left
@@ -352,6 +370,28 @@
     (\Sigma v_i)^T = v_i^T\Sigma^T = v_i^T\Sigma
     \]
     \ldots so it must be the case that $v_i=u_i$.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Positive semidefinite (PSD) matrices: real generalized eigenvectors}
+
+  Suppose $\Sigma=AA^T\succeq 0$.  Then every eigenvalue has an
+  associated generalized eigenvector:
+  \begin{itemize}
+  \item If $\lambda_i$ is unique, then there is an associated real
+    eigenvector, $\lambda_iv_i = \Sigma v_i$.
+  \item If $\lambda_i=\lambda_{i+1}=\cdots \lambda_{i+k=1}$, then
+    there is a $k$-dimensional subspace whose vectors $v$ all satisfy
+    $\lambda_iv =\Sigma v$.  We can choose an arbitrary
+    orthonormal basis of that subspace, and call those the
+    ``generalized eigenvectors'' $v_i,\cdots,v_{i+k-1}$ of
+    $\lambda_i,\cdots,\lambda_{i+k-1}$.
+    \begin{itemize}
+    \item 
+      Most common example: if $A\in\Re^{mxn},n>m$, then at least $n-m$
+      of the eigenvalues of $\Sigma$ are zero.
+    \end{itemize}
   \end{itemize}
 \end{frame}
 
@@ -426,16 +466,20 @@
 \end{frame}
 
 \begin{frame}
-  \frametitle{Summary: properties of symmetric matrices}
-  If $\Sigma$ is symmetric with $d$ eigenvectors, and $d$ distinct eigenvalues, then
-  \[
-  \Sigma=V\Lambda V^T
-  \]
+  \frametitle{Summary: symmetric positive semi-definite matrices}
+
+  If $\Sigma$ is symmetric and positive semi-definite, then
   \[
   \Lambda = V^T\Sigma V
   \]
   \[
   VV^T=V^TV=I
+  \]
+  Putting those two together, we also get this statement, which says
+  that you can reconstruct $\Sigma$ from the scaled outer products of
+  its eigenvectors:
+  \[
+  V\Lambda V^T = VV^T\Sigma VV^T = \Sigma
   \]
 \end{frame}
 
@@ -476,8 +520,9 @@
     are the roots of the equation $|A-\lambda I|=0$.
   \item Left and right eigenvectors of a matrix are either orthogonal
     (${u}_i^T{v}_j=0$) or share the same eigenvalue ($\kappa_i=\lambda_j$).
-  \item For a symmetric matrix $\Sigma =AA^T$, the left and right eigenvectors
-    are the same.  If the eigenvalues are distinct and real, then:
+  \item For a symmetric positive semidefinite matrix $\Sigma =AA^T$,
+    the left and right eigenvectors are the same.  If the eigenvalues
+    are distinct and real, then:
     \[
     \Sigma=V\Lambda V^T,~~~\Lambda = V^T\Sigma V,~~~VV^T=V^TV=I
     \]
