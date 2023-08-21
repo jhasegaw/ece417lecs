@@ -328,29 +328,36 @@
 \begin{frame}
   \frametitle{Symmetric matrices: left=right}
 
-  Suppose that $A$ is any arbitrary matrix, not even square.  The
-  product $AA^T$ is both square and symmetric.  For example:
+  Suppose that $A\in\Re^{m\times n}$ is any arbitrary matrix, not even
+  square ($m\ne n$).  The product $A^TA$ is both square and symmetric.
+  For example:
   \begin{align*}
-    AA^T &= \left[\begin{array}{ccc}a_{1,1}&a_{1,2}&a_{1,3}\\a_{2,1}&a_{2,2}&a_{2,3}\end{array}\right]
+    A^TA &= \left[\begin{array}{ccc}a_{1,1}&a_{1,2}&a_{1,3}\\a_{2,1}&a_{2,2}&a_{2,3}\end{array}\right]
     \left[\begin{array}{cc}a_{1,1}&a_{2,1}\\a_{1,2}&a_{2,2}\\a_{1,3}&a_{2,3}\end{array}\right]\\
     &=
     \left[\begin{array}{cc}\sum_ja_{1,j}^2&\sum_ja_{1,j}a_{2,j}\\\sum_ja_{1,j}a_{2,j}&\sum_ja_{2,j}^2
       \end{array}\right]
+    &=
+    \left[\begin{array}{cc}\Vert a_1\Vert^2&\sum_ja_1^Ta_2\\a_1^Ta_2&\Vert a_2\Vert^2
+      \end{array}\right]
   \end{align*}
+  where the last row uses $a_i$ to mean the $i^{\textrm{th}}$ column
+  of $A$.  The matrix of $A^TA$ is thus the matrix of inner-products
+  of the columns of $A$; this is called the {\bf gram matrix}, so
+  we'll use the notation $G=A^TA$.
 \end{frame}
 
 \begin{frame}
   \frametitle{Positive semi-definite matrices}
 
-  The matrix $AA^T$ is also positive semi-definite ($AA^T\succeq 0$),
-  meaning that
+  A gram matrix is also positive semi-definite (notation: $G\succeq
+  0$), meaning that
   \begin{itemize}
-  \item Its determinant is non-negative, $\mbox{det}(AA^T)\ge 0$, and
+  \item Its determinant is non-negative, $|G|\ge 0$, and
   \item all of its eigenvalues are non-negative, $\lambda_i \ge 0$.
   \end{itemize}
-  Intuitive explanation (not quite a proof): suppose
-  $A=[a_1,\ldots,a_m]^T$.  Then the elements on the main diagonal are
-  larger than the other elements in the sense that
+  Intuitive explanation (not quite a proof): The elements on the main
+  diagonal of $S$ are larger than the other elements in the sense that
   \begin{align*}
     a_i^Ta_j &= \Vert a_i\Vert\cdot\Vert a_j\Vert\cos\left(\angle(a_i,a_j)\right)\le\Vert a_i\Vert\cdot
     \Vert a_j\Vert
@@ -360,14 +367,14 @@
 \begin{frame}
   \frametitle{Symmetric matrices: left=right}
 
-  Suppose $\Sigma=AA^T$ is any symmetric square matrix: then its left
+  Suppose $G=A^TA$ is any symmetric square matrix: then its left
   and right eigenvectors and eigenvalues are the same.
   \begin{itemize}
-  \item The right eigenvectors are $\lambda_iv_i=\Sigma v_i$
-  \item The left eigenvectors are $\lambda_i u_i^T = u_i^T \Sigma$
-  \item \ldots but transposing $\Sigma v_i$ gives:
+  \item The right eigenvectors are $\lambda_iv_i=G v_i$
+  \item The left eigenvectors are $\lambda_i u_i^T = u_i^T G$
+  \item \ldots but transposing $G v_i$ gives:
     \[
-    (\Sigma v_i)^T = v_i^T\Sigma^T = v_i^T\Sigma
+    (G v_i)^T = v_i^TG^T = v_i^TG
     \]
     \ldots so it must be the case that $v_i=u_i$.
   \end{itemize}
@@ -376,21 +383,21 @@
 \begin{frame}
   \frametitle{Positive semidefinite (PSD) matrices: real generalized eigenvectors}
 
-  Suppose $\Sigma=AA^T\succeq 0$.  Then every eigenvalue has an
+  Suppose $G=A^TA\succeq 0$.  Then every eigenvalue has an
   associated generalized eigenvector:
   \begin{itemize}
   \item If $\lambda_i$ is unique, then there is an associated real
-    eigenvector, $\lambda_iv_i = \Sigma v_i$.
+    eigenvector, $\lambda_iv_i = G v_i$.
   \item If $\lambda_i=\lambda_{i+1}=\cdots \lambda_{i+k=1}$, then
     there is a $k$-dimensional subspace whose vectors $v$ all satisfy
-    $\lambda_iv =\Sigma v$.  We can choose an arbitrary
+    $\lambda_iv =G v$.  We can choose an arbitrary
     orthonormal basis of that subspace, and call those the
     ``generalized eigenvectors'' $v_i,\cdots,v_{i+k-1}$ of
     $\lambda_i,\cdots,\lambda_{i+k-1}$.
     \begin{itemize}
     \item 
       Most common example: if $A\in\Re^{mxn},n>m$, then at least $n-m$
-      of the eigenvalues of $\Sigma$ are zero.
+      of the eigenvalues of $G$ are zero.
     \end{itemize}
   \end{itemize}
 \end{frame}
@@ -417,7 +424,7 @@
 
 \begin{frame}
   \frametitle{The eigenvector matrix}
-  So if $\Sigma$ is symmetric with distinct eigenvalues, then
+  So if $G$ is symmetric with distinct eigenvalues, then
   its eigenvectors  are orthonormal:
   \[
   {v}_i^T{v}_j=
@@ -450,14 +457,14 @@
 \begin{frame}
   \frametitle{Eigenvectors orthogonalize a symmetric matrix}
   \[
-  {v}_i^T\Sigma{v}_j=
+  {v}_i^TG{v}_j=
   {v}_i^T(\lambda_j{v}_j)=\lambda_j{v}_i^T{v}_j
   =\begin{cases}\lambda_j,&i=j\\0,&i\ne j\end{cases}
   \]
   In other words, if a symmetric matrix has $d$ eigenvectors with
   distinct eigenvalues, then its eigenvectors orthogonalize it:
   \[
-  V^T\Sigma V = \Lambda
+  V^TG V = \Lambda
   \]
   \[
   \Lambda=
@@ -468,18 +475,18 @@
 \begin{frame}
   \frametitle{Summary: symmetric positive semi-definite matrices}
 
-  If $\Sigma$ is symmetric and positive semi-definite, then
+  If $G$ is symmetric and positive semi-definite, then
   \[
-  \Lambda = V^T\Sigma V
+  \Lambda = V^TG V
   \]
   \[
   VV^T=V^TV=I
   \]
   Putting those two together, we also get this statement, which says
-  that you can reconstruct $\Sigma$ from the scaled outer products of
+  that you can reconstruct $G$ from the scaled outer products of
   its eigenvectors:
   \[
-  V\Lambda V^T = VV^T\Sigma VV^T = \Sigma
+  V\Lambda V^T = VV^TG VV^T = G
   \]
 \end{frame}
 
@@ -520,11 +527,11 @@
     are the roots of the equation $|A-\lambda I|=0$.
   \item Left and right eigenvectors of a matrix are either orthogonal
     (${u}_i^T{v}_j=0$) or share the same eigenvalue ($\kappa_i=\lambda_j$).
-  \item For a symmetric positive semidefinite matrix $\Sigma =AA^T$,
+  \item For a symmetric positive semidefinite matrix $G =A^TA$,
     the left and right eigenvectors are the same.  If the eigenvalues
     are distinct and real, then:
     \[
-    \Sigma=V\Lambda V^T,~~~\Lambda = V^T\Sigma V,~~~VV^T=V^TV=I
+    G=V\Lambda V^T,~~~\Lambda = V^TG V,~~~VV^T=V^TV=I
     \]
   \end{itemize}
 \end{frame}
