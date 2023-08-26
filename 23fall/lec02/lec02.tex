@@ -414,12 +414,33 @@
         \frac{d\epsilon}{db_{1}} &\frac{d\epsilon}{db_{2}}
       \end{array}\right]\\
     &=\frac{d}{dA} \text{trace}\left(A^TX^TXA-Y^TXA-A^TX^TY+Y^TY\right)\\
-    &= A^TX^TX + (X^TXA)^T -(Y^TX)^T - X^TY
+    &= A^TX^TX + (X^TXA)^T -(X^TY)^T - Y^TX
   \end{align*}
-  Setting that to zero, we find that the MMSE value of $A$ is
+  Setting that to zero and re-arranging gives $X^TXA=X^TY$, and therefore
   \begin{displaymath}
     A_{\text{MMSE}} = (X^TX)^{-1}X^TY = X^\dag Y
   \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{MMSE Estimation of Affine Transform}
+
+  In case you don't like matrix differentiations, here is the
+  derivative from the previous slide done element-by-element:
+  \begin{align*}
+    \epsilon &=\Vert XA-Y\Vert_F^2
+    =\sum_{i=1}^{m}\sum_{j=1}^2\left(\sum_{k=1}^3x_{i,k}a_{k,j}-y_{i,j}\right)^2\\
+    \frac{\partial\epsilon}{\partial a_{p,q}}
+    &=2\sum_{i=1}^{m}\sum_{j=1}^2\left(\sum_{k=1}^3x_{i,k}a_{k,j}-y_{i,j}\right)
+    \left(\frac{\partial\sum_{k=1}^3x_{i,k}a_{k,j}}{\partial a_{p,q}}\right)\\
+    &=2\sum_{i=1}^{m}\left(\sum_{k=1}^3x_{i,k}a_{k,q}-y_{i,q}\right)x_{i,p}\\
+    %&=2\sum_{i=1}^{m}\sum_{k=1}^3x_{i,p}x_{i,k}a_{k,q}-2\sum_{i=1}^mx_{i,p}y_{i,q}
+  \end{align*}
+  If we stack up the last line into a matrix where $p$ is the row
+  number and $q$ is the column number, we get
+  \begin{align*}
+    \frac{d\epsilon}{dA}=2X^TXA -2X^TY
+  \end{align*}
 \end{frame}
 
 \begin{frame}

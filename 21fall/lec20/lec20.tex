@@ -159,7 +159,7 @@
 
   Instead of using vectors as layers, let's use images.
   \begin{align*}
-    xi^{(l)}[m,n,d] &= \sum_c\sum_{m'}\sum_{n'} w^{(l)}[m',n',c,d]h^{(l-1)}[m-m',n-n',c]
+    \xi^{(l)}[m,n,d] &= \sum_c\sum_{m'}\sum_{n'} w^{(l)}[m',n',c,d]h^{(l-1)}[m-m',n-n',c]
   \end{align*}
   where
   \begin{itemize}
@@ -211,7 +211,7 @@
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section[Backprop]{Backprop and Weight Gradient in a Convolutional Layer}
+\section[Backprop]{Backprop of Convolution is Correlation}
 \setcounter{subsection}{1}
 
 \begin{frame}
@@ -222,7 +222,7 @@
   \begin{displaymath}
     \frac{\partial{\mathcal L}}{\partial h^{(l-1)}[m',n',c]} =
     \sum_{m}\sum_n\sum_d\frac{d{\mathcal L}}{d\xi^{(l)}[m,n,d]}
-    \frac{\partial \partial\xi^{(l)}[m,n,d]}{\partial h^{(l-1)}[m',n',c]}
+    \frac{\partial\xi^{(l)}[m,n,d]}{\partial h^{(l-1)}[m',n',c]}
   \end{displaymath}
   The partial derivative is easy:
   \begin{align*}
@@ -250,9 +250,9 @@
   flipped left-to-right and top-to-bottom.  Flipped convolution is also
   known as ``correlation.''
   \begin{align*}
-    \frac{\partial{\mathcal L}}{\partial h^{(l-1)}[m,n,d]} &=
-    \sum_{m'}\sum_{n'}\sum_c w^{(l)}[m'-m,n'-n,d,c]\frac{d{\mathcal L}}{d\xi^{(l)}[m',n',c]}\\
-    &= w^{(l)}[-m,-n,c,d] \ast \frac{d{\mathcal L}}{d\xi^{(l)}[m,n,c]}\\
+    \frac{\partial{\mathcal L}}{\partial h^{(l-1)}[m',n',c]} &=
+    \sum_{m}\sum_{n}\sum_c w^{(l)}[m-m',n-n',c,d]\frac{d{\mathcal L}}{d\xi^{(l)}[m,n,d]}\\
+    &= w^{(l)}[-m',-n',c,d] \ast \frac{d{\mathcal L}}{d\xi^{(l)}[m',n',d]}\\
   \end{align*}
 \end{frame}
 
@@ -276,8 +276,8 @@
     Back-prop is a correlation:
     \begin{align*}
     \xi^{(l)}[m,n,d] &= w^{(l)}[m,n,c,d] \ast h^{(l-1)}[m,n,c]\\
-    \frac{d{\mathcal L}}{dh^{(l-1)}[m,n,d]} &=
-    w^{(l)}[-m,-n,c,d] \ast \frac{d{\mathcal L}}{d\xi^{(l)}[m,n,c]}\\
+    \frac{d{\mathcal L}}{dh^{(l-1)}[m,n,c]} &=
+    w^{(l)}[-m,-n,c,d] \ast \frac{d{\mathcal L}}{d\xi^{(l)}[m,n,d]}\\
     \end{align*}
   \end{itemize}
 \end{frame}
@@ -310,11 +310,11 @@
   \begin{align*}
     \frac{\partial\xi^{(l)}[m,n,d]}{\partial w^{(l)}[m',n',c,d]} &= h^{(l-1)}[m-m',n-n',c]
   \end{align*}
-  Putting those together, we discover that the weight gradient is ALSO a convolution!!!
+  Putting those together, we discover that the weight gradient is a correlation:
   \begin{align*}
     \frac{d{\mathcal L}}{dw^{(l)}[m',n',c,d]} &=
     \sum_{m}\sum_n \frac{d{\mathcal L}}{d\xi^{(l)}[m,n,d]}h^{(l-1)}[m-m',n-n',c]\\
-    &= \frac{d{\mathcal L}}{d\xi^{(l)}[m',n',d]} \ast h^{(l-1)}[m',n',c]\\
+    &= \frac{d{\mathcal L}}{d\xi^{(l)}[m',n',d]} \ast h^{(l-1)}[-m',-n',c]\\
   \end{align*}
 \end{frame}
 
@@ -327,13 +327,13 @@
     \end{align*}
   \item Back-prop:
     \begin{align*}
-      \frac{\partial{\mathcal L}}{\partial h^{(l-1)}[m,n,d]} &=
-      w^{(l)}[-m,-n,c,d] \ast \frac{d{\mathcal L}}{d\xi^{(l)}[m,n,c]}
+      \frac{\partial{\mathcal L}}{\partial h^{(l-1)}[m,n,c]} &=
+      w^{(l)}[-m,-n,c,d] \ast \frac{d{\mathcal L}}{d\xi^{(l)}[m,n,d]}
     \end{align*}
   \item Weight gradient:
     \begin{align*}
       \frac{d{\mathcal L}}{dw^{(l)}[m,n,c,d]} &=
-      \frac{d{\mathcal L}}{d\xi^{(l)}[m,n,d]} \ast h^{(l-1)}[m,n,c]
+      \frac{d{\mathcal L}}{d\xi^{(l)}[m,n,d]} \ast h^{(l-1)}[-m,-n,c]
     \end{align*}
   \end{enumerate}
 \end{frame}
@@ -505,7 +505,7 @@
   \frametitle{Summary}
   \begin{itemize}
   \item Convolutional layers: forward-prop is a convolution, back-prop
-    is a correlation, weight gradient is a convolution.
+    is a correlation, weight gradient is a correlation.
   \item Max pooling: back-prop just propagates the derivative to the
     pixel that was chosen by forward-prop.
   \item Many-layer CNNs trained on GPUs, with small convolutions in

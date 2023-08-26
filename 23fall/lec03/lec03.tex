@@ -1,11 +1,7 @@
 \documentclass{beamer}
-\usepackage{listings}
-\usepackage{hyperref}
-\usepackage{tikz}
+\usepackage{listings,hyperref,amsmath,graphicx,animate,tikz}
 \usetikzlibrary{positioning,shadows,arrows,shapes,calc}
 \def\labelenumi\theenumi
-\usepackage{graphicx}
-\usepackage{amsmath}
 \mode<presentation>{\usetheme{Frankfurt}}
 \AtBeginSection
 {
@@ -18,7 +14,7 @@
 \author{Mark Hasegawa-Johnson}
 \date{ECE 417: Multimedia Signal Processing, Fall 2023}  
 \institute{University of Illinois}
-\titlegraphic{\includegraphics{exp/block-I-primary.png}}
+\titlegraphic{\includegraphics[width=0.3in]{exp/block-I-primary.png}}
 \begin{document}
 
 % Title
@@ -36,84 +32,152 @@
 \setcounter{subsection}{1}
 
 \begin{frame}
-  \frametitle{Input: X-Ray Microbeam Data}
-  \centerline{\animategraphics[loop,controls,height=2.5in]{20}{exp/mp1_xrmb_movie-}{0}{47}}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Input: A Still Image Acquired Using MRI}
-  \centerline{\includegraphics[height=2.5in]{mp1_mri_points.png}}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Desired Output: Animated Image}
-  \centerline{\animategraphics[loop,controls,height=2.5in]{20}{exp/mp1_result-}{0}{47}}
-\end{frame}
-
-\begin{frame}
   \frametitle{Strategy}
   \begin{enumerate}
   \item Use affine projection to rotate, scale, and shear the XRMB
     points so that they match the shape of the MRI as well as possible.
   \item Draw triangles on the MRI so that every pixel is inside a triangle.
   \item Move the triangles.
+  \item Map each integer pixel in the target image to a real-valued pixel in the original image
+  \item Use bilinear interpolation to find the color of the pixel 
   \end{enumerate}
 \end{frame}
 
 \begin{frame}
   \frametitle{Step 1 (Last time): Use affine projection to map XRMB to MRI}
-  \centerline{\animategraphics[loop,controls,height=2.5in]{20}{exp/mp1_procrustes_movie-}{0}{47}}
+  \centerline{\animategraphics[loop,controls,height=2.5in]{20}{exp/mp1_procrustes_movie-}{0}{42}}
 \end{frame}
 
 \begin{frame}
-  \frametitle{Step 2 (Today): Draw triangles on the MRI}
-  \centerline{\animategraphics[loop,controls,height=2.5in]{20}{exp/mp1_procrustes_triangles-}{0}{47}}
+  \frametitle{Steps 2 and 3: Draw triangles, then move them}
+  \centerline{\animategraphics[loop,controls,height=2.5in]{20}{exp/mp1_procrustes_triangles-}{0}{42}}
 \end{frame}
 
+\begin{frame}
+  \frametitle{Steps 4 and 5: Find the color of each pixel}
+  \centerline{\animategraphics[loop,controls,height=2.5in]{20}{exp/mp1_result-}{0}{42}}
+\end{frame}
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Barycentric Coordinates}
+\section[Triangulation]{Steps 2 and 3: Draw and Move Triangles}
+\setcounter{subsection}{1}
+
+
+\begin{frame}
+  \begin{columns}[t]
+    \column{2.5in}
+    \begin{block}{Triangulation}
+      A {\bf triangulation} of a set of points = a set of triangles,
+      connecting those points, that covers the convex hull of those
+      points.
+
+      There are many very cool algorithms that will automatically
+      triangulate a set of points.
+    \end{block}
+    \column{2.25in}
+    \begin{block}{}
+      \centerline{\includegraphics[width=2.25in]{exp/PointSetTriangulations.png}}
+      \centerline{\tiny\href{https://commons.wikimedia.org/wiki/File:PointSetTriangulations.svg}{CC-BY-4.0 TheMathCat}}
+    \end{block}
+  \end{columns}
+\end{frame}  
+
+\begin{frame}
+  \frametitle{Triangulation for the machine problem is provided for you}
+  \centerline{\includegraphics[height=0.7\textheight]{triangles.png}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Once you have drawn the triangles, they move along with the points}
+  \centerline{\animategraphics[loop,controls,height=2.5in]{20}{exp/mp1_procrustes_triangles-}{0}{42}}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Barycentric coordinates]{Step 4: Find the mapping between original and moved pixels: Barycentric coordinates}
 \setcounter{subsection}{1}
 
 \begin{frame}
-  \centerline{\href{https://www.youtube.com/watch?v=il6Z5LCykZk}{\includegraphics[width=4.5in]{../../../17fall/lectures/youtube_affine.png}}}
-\end{frame}
+  \begin{columns}[t]
+    \column{2.5in}
+    \begin{block}{Source image}
+      The source image is divided into non-overlapping triangles, $X_k$.
+      \centerline{\includegraphics[width=\textwidth]{triangles.png}}
+    \end{block}
+    \column{2.25in}
+    \begin{block}{Target image}
+      In the target image, those triangles have moved to new locations, $Y_k$.
+      \centerline{\animategraphics[loop,controls,width=\textwidth]{20}{exp/mp1_procrustes_triangles-}{0}{42}}
+    \end{block}
+  \end{columns}
+\end{frame}  
 
 \begin{frame}
-  \frametitle{Piece-wise affine transform}
+  \frametitle{Problem Statement: Moving pixels}
+
   \begin{itemize}
-    \item OK, so somebody's given us a lot of points, arranged like
-      this in little triangles.
-    \item We know that we want a DIFFERENT AFFINE TRANSFORM for EACH
-      TRIANGLE.  For the $k^{\textrm{th}}$ triangle, we want to have
-      \[
-      A_k = \left[\begin{array}{ccc}a_k&b_k&c_k\\d_k&e_k&f_k\\0&0&1\end{array}\right]
-      \]
+  \item
+    The size of the image we want to construct is $m\times n$.
+  \item
+    Consider a particular augmented target pixel,
+    $y=\left[\begin{array}{c}y_1\\y_2\\1\end{array}\right]$, where $0\le
+    y_1\le m-1$ and $0\le y_2\le n-1$ are both integers.
+  \item
+    In order to find the color of target pixel $y$, we want to find
+    out which source pixel, $x$, was moved to that location.  Assume
+    that pixels only move around -- they don't change color while they
+    move.
   \end{itemize}
-  \centerline{\includegraphics[height=1in]{../../../17fall/lectures/mp7_image006.jpg}}
+\end{frame}
+\begin{frame}
+  \frametitle{Problem Statement: Piece-wise affine transform}
+
+  \begin{itemize}
+  \item
+    Suppose that $y\in Y_k$, the $k^{\text{th}}$ target
+    triangle.
+  \item
+    We know therefore that $x\in X_k$.  But there are lots
+    of pixels inside $X_k$.  Which one is it?
+  \item
+    Let's assume that, within each triangle, the pixels move according
+    to an affine transform.  In other words, if $y\in Y_k$,
+    and if we already knew $A_k$, then we could find $x$ by solving:
+    \begin{displaymath}
+      y = A_k x
+    \end{displaymath}
+    where
+    \[
+    y=\left[\begin{array}{c}y_1\\y_2\\1\end{array}\right],~~~
+    x=\left[\begin{array}{c}x_1\\x_2\\1\end{array}\right],~~~
+    A_k=\left[\begin{array}{ccc}a_{1,1}&a_{1,2}&a_{1,3}\\a_{2,1}&a_{2,2}&a_{2,3}\\0&0&1\end{array}\right]
+    \]
+  \end{itemize}
 \end{frame}
 
 \begin{frame}
   \frametitle{Piece-wise affine transform}
   \[
-  \mbox{output point:}~\vec{x}=\left[\begin{array}{c}x\\y\\1\end{array}\right],~~~
-  \mbox{input point:}~\vec{u}=\left[\begin{array}{c}u\\v\\1\end{array}\right]
+  \mbox{target point:}~y=\left[\begin{array}{c}y_1\\y_2\\1\end{array}\right],~~~
+  \mbox{source point:}~x=\left[\begin{array}{c}x_1\\x_2\\1\end{array}\right]
   \]
-  {\bf Definition}: if $\vec{x}$ is in the $k^{\textrm{th}}$ triangle in the
-  {\bf output image}, then we want to use the $k^{\textrm{th}}$ affine transform:
+  {\bf Definition}: if $y$ is in the $k^{\textrm{th}}$ triangle in the
+  {\bf output image}, then we want to use the $k^{\textrm{th}}$ affine
+  transform:
   \[
-  \vec{x}=A_k \vec{u},~~~\vec{u}=A_k^{-1}\vec{x}
+  y=A_k x,~~~x=A_k^{-1}y
   \]
-  \centerline{\includegraphics[height=1in]{mp7_image_warping_points.jpg}\includegraphics[height=1in]{mp7_image_warped.jpg}}
 \end{frame}
 
 \begin{frame}
-  If {\bf it is known that} $\vec{u}=A_k^{-1}\vec{x}$ for some unknown
+  If {\bf it is known that} $x=A_k^{-1}y$ for some unknown
   affine transform matrix $A_k$,
   \vspace*{2mm}\\
   then
   \vspace*{2mm}\\
   the method of barycentric
-  coordinates finds $\vec{u}$
+  coordinates finds $x$
   \vspace*{2mm}\\
   {\bf without ever finding} $A_k$.
 \end{frame}
@@ -123,23 +187,23 @@
     \column{2.5in}
     \begin{block}{Barycentric Coordinates}
     Barycentric coordinates turns the problem on its head.  Suppose
-    $\vec{x}$ is in a triangle with corners at $\vec{x}_1$,
-    $\vec{x}_2$, and $\vec{x}_3$. That means that
+    $y$ is in a triangle with corners at $y_1$,
+    $y_2$, and $y_3$. That means that
     \[
-    \vec{x}=\lambda_1\vec{x}_1+\lambda_2\vec{x}_2+\lambda_3\vec{x}_3
+    y=\beta_1y_1+\beta_2y_2+\beta_3y_3
     \]
     where
     \[
-    0\le\lambda_1,\lambda_2,\lambda_3\le 1
+    0\le \beta_1,\beta_2,\beta_3\le 1
     \]
     and
     \[
-    \lambda_1+\lambda_2+\lambda_3=1
+    \beta_1+\beta_2+\beta_3=1
     \]
     \end{block}
     \column{2.25in}
     \begin{block}{}
-      \centerline{\includegraphics[width=2.25in]{../../../17fall/lectures/480px-TriangleBarycentricCoordinates.png}}
+      \centerline{\includegraphics[width=2.25in]{exp/Barycentric.png}}
     \end{block}
   \end{columns}
 \end{frame}
@@ -149,21 +213,21 @@
   Suppose that all three of the corners are 
   transformed by some affine transform $A$, thus
   \[
-  \vec{u}_1=A\vec{x}_1,~~
-  \vec{u}_2=A\vec{x}_2,~~
-  \vec{u}_3=A\vec{x}_3
+  x_1=Ay_1,~~
+  x_2=Ay_2,~~
+  x_3=Ay_3
   \]
   Then if
   \[
-  \mbox{If:}~\vec{x}=\lambda_1\vec{x}_1+\lambda_2\vec{x}_2+\lambda_3\vec{x}_3
+  \mbox{If:}~y=\beta_1y_1+\beta_2y_2+\beta_3y_3
   \]
   Then:
   \begin{eqnarray*}
-    \vec{u} &=& A\vec{x}\\
-    &=& \lambda_1A\vec{x}_1+\lambda_2A\vec{x}_2+\lambda_3A\vec{x}_3\\
-    &=& \lambda_1\vec{u}_1+\lambda_2\vec{u}_2+\lambda_3\vec{u}_3
+    x &=& Ay\\
+    &=& \beta_1Ay_1+\beta_2Ay_2+\beta_3Ay_3\\
+    &=& \beta_1x_1+\beta_2x_2+\beta_3x_3
   \end{eqnarray*}
-  In other words, once we know the $\lambda$'s, we no longer need to
+  In other words, once we know $\beta$, we no longer need to
   find $A$.  We only need to know where the corners of the triangle
   have moved.
 \end{frame}
@@ -174,39 +238,39 @@
     \begin{block}{Barycentric Coordinates}
       If
       \[
-      \vec{x}=\lambda_1\vec{x}_1+\lambda_2\vec{x}_2+\lambda_3\vec{x}_3
+      y=\beta_1y_1+\beta_2y_2+\beta_3y_3
       \]
       Then
       \[
-      \vec{u}= \lambda_1\vec{u}_1+\lambda_2\vec{u}_2+\lambda_3\vec{u}_3
+      x= \beta_1x_1+\beta_2x_2+\beta_3x_3
       \]
     \end{block}
     \column{2.25in}
     \begin{block}{}
-      \centerline{\includegraphics[width=2.25in]{../../../17fall/lectures/480px-TriangleBarycentricCoordinates.png}}
+      \centerline{\includegraphics[width=2.25in]{exp/Barycentric.png}}
     \end{block}
   \end{columns}
 \end{frame}
 
 \begin{frame}
   \frametitle{How to find Barycentric Coordinates}
-  But how do you find $\lambda_1$, $\lambda_2$, and $\lambda_3$?
+  But how do you find $\beta_1$, $\beta_2$, and $\beta_3$?
   \[
-  \left[\begin{array}{c}x\\y\\1\end{array}\right]=
-  \lambda_1\vec{x}_1+\lambda_2\vec{x}_2+\lambda_3\vec{x}_3
-  =\left[\begin{array}{ccc}x_1&x_2&x_3\\y_1&y_2&y_3\\1&1&1\end{array}\right]
-  \left[\begin{array}{c}\lambda_1\\\lambda_2\\\lambda_3\end{array}\right]
+  \left[\begin{array}{c}y_1\\y_2\\1\end{array}\right]=
+  \beta_1y_1+\beta_2y_2+\beta_3y_3
+  =\left[\begin{array}{ccc}y_{1,1}&y_{1,2}&y_{1,3}\\y_{2,1}&y_{2,2}&y_{2,3}\\1&1&1\end{array}\right]
+  \left[\begin{array}{c}\beta_1\\\beta_2\\\beta_3\end{array}\right]
   \]
   Write this as:
   \[
-  \vec{x}=X\vec\lambda
+  y=Y\beta
   \]
   Therefore
   \[
-  \vec\lambda = X^{-1}\vec{x}
+  \beta = Y^{-1}y
   \]
-  This {\bf always works:} the matrix $X$ is always invertible, unless
-  all three of the points $\vec{x}_1$, $\vec{x}_2$, and $\vec{x}_3$
+  This {\bf always works:} the matrix $Y$ is always invertible, unless
+  all three of the points $y_1$, $y_2$, and $y_3$
   are on a straight line.
 \end{frame}
 \begin{frame}
@@ -216,73 +280,67 @@
   \item Suppose we have $K$ different triangles, each of which is
     characterized by a $3\times 3$ matrix of its corners
     \[
-    X_k = \left[\vec{x}_{1,k},\vec{x}_{2,k},\vec{x}_{3,k}\right]
+    Y_k = \left[y_{1}^{(k)},y_{2}^{(k)},y_{3}^{(k)}\right]
     \]
-    where $\vec{x}_{m,k}$ is the $m^{\textrm{th}}$ corner of the
+    where $y_{m}^{(k)}$ is the $m^{\textrm{th}}$ corner of the
     $k^{\textrm{th}}$ triangle.
-  \item Notice that, for any point $\vec{x}$, for ANY triangle $X_k$,
+  \item Notice that, for any point $y$, for ANY triangle $Y_k$,
     we can find
-    \[\lambda = X_k^{-1}\vec{x}\]
-  \item However, the coefficients $\lambda_1$, $\lambda_2$, and
-    $\lambda_3$ will all be between $0$ and $1$ {\bf if and only if}
-    the point $\vec{x}$ is inside the triangle $X_k$.  Otherwise, some
-    of the $\lambda$'s must be negative.
+    \[\beta = Y_k^{-1}y\]
+  \item However, the coefficients $\beta_1$, $\beta_2$, and
+    $\beta_3$ will all be between $0$ and $1$ {\bf if and only if}
+    the point $y$ is inside the triangle $Y_k$.  Otherwise, some
+    of the elements of $\beta$ must be negative.
   \end{itemize}
 \end{frame}
 
 \begin{frame}
   \frametitle{The Method of Barycentric Coordinates}
-  To construct the animated output image frame $J[y,x]$, we do
+  To construct the animated output image frame $J[y_2,y_1]$, we do
   the following things:
   \begin{itemize}
-  \item First, for each of the reference triangles $U_k$ in the input
-    image $I(u,v)$, decide where that triangle
-    should move to.  Call the new triangle location $X_k$.
-  \item Second, for each output pixel $(x,y)$:
+  \item First, for each of the reference triangles $X_k$ in the input
+    image $I(x_2,x_1)$, decide where that triangle
+    should move to.  Call the new triangle location $Y_k$.
+  \item Second, for each integer output pixel $(y_1,y_2)$:
     \begin{itemize}
-    \item For each of the triangles, find $\vec\lambda=X_k^{-1}\vec{x}$.
-    \item Choose the triangle for which all of the $\lambda$ coefficients
-      are $0\le\lambda\le 1$.
-    \item Find $\vec{u}=U_k\vec\lambda$.
-    \item Estimate $I(u,v)$ using bilinear interpolation.
-    \item Set $J[y,x]=I(v,u)$.
+    \item For each of the triangles, find $\beta=Y_k^{-1}y$.
+    \item Choose the triangle for which all of the elements of $\beta$
+      are $0\le\beta_m\le 1$.
+    \item Find $x=X_k\beta$.
+    \item Find the color of pixel $I(x_2,x_1)$ in the input image.
+    \item Set $J[y_2,y_1]=I(x_2,x_1)$.
     \end{itemize}
   \end{itemize}
 \end{frame}
 
-\begin{frame}
-  \frametitle{How to Make a Talking Head}
-  \centerline{\includegraphics[height=0.75in]{mp7_image_warping_points.jpg}\includegraphics[height=0.75in]{mp7_image_warped.jpg}}
-  \begin{align*}
-    \mbox{lip\_height,width} &= \mbox{NeuralNet}\left(\mbox{audio features}\right)\\
-    \mbox{out\_triangs} &= \mbox{LinearlyInterpolate}\left(\mbox{inp\_triangs,lip\_height,width}\right)\\
-    \mbox{inp\_coord} &= \mbox{BaryCentric}\left(\mbox{out\_coord,inp\_triangs,out\_triangs}\right)\\
-    \mbox{out\_image} &= \mbox{BilinearInterpolate}\left(\mbox{inp\_coord,inp\_image}\right)
-  \end{align*}
-\end{frame}
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Image Interpolation}
+\section[Image interpolation]{Step 5: Find the color of the source pixel: Bilinear interpolation}
 \setcounter{subsection}{1}
 
 \begin{frame}
-  \begin{block}{Integer Output Points}
+  \begin{block}{Integer Target Points}
     Now let's suppose that you've figured out the coordinate transform:
-    for any given $J[y,x]$, you've figured out which pixel should be used to create it 
-    ($J[y,x]=I(v,u)$).
-    \lstinputlisting[language=Python]{interpolation_example.py}
+    for any given $J[y_2,y_1]$, you've figured out which pixel should be used to create it 
+    ($J[y_2,y_1]=I(x_2,x_1)$).
+    \begin{displaymath}
+      x=X_k\beta=X_kY_k^{-1}y
+    \end{displaymath}
   \end{block}
   \begin{block}{The Problem: Non-Integer Input Points}
-    If $[x,y]$ are integers, then usually, $(u,v)$ are not integers.
+    If $[y_2,y_1]$ are integers, then usually, $(x_2,x_1)$ are not integers.
   \end{block}
 \end{frame}
 
 \begin{frame}
   \frametitle{Image Interpolation}
-  The function compute\_pixel performs image interpolation.
-  Given the pixels of $I[n,m]$ at integer values of $m$ and $n$, it computes
-  the pixel at a non-integer position $I(v,u)$ as:
+
+  It is necessary to find $I(v,u)$ at non-integer values of $(v,u)$ by
+  interpolating between the integer-valued pixels provided in the image file. 
+
+  Given the pixels of $I[n,m]$ at integer values of $m$ and $n$, we
+  can interpolate using an interpolation kernel $h(v,u)$:
   \[
   I(v,u) = \sum_m\sum_n I[n,m] h(v-n,u-m)
   \]
@@ -400,172 +458,38 @@
   \centerline{\includegraphics[width=4.5in]{exp/sincinterp.png}}
 \end{frame}
 
-\begin{frame}
-  \frametitle{Original, Upsampled, and Sinc-Interpolated Spectra}
-
-  Here are the magnitude Fourier transforms of the original,
-  upsampled, and sinc-interpolated cat.
-  
-  \centerline{\includegraphics[width=4.5in]{exp/downsampled_spectra.png}}
-\end{frame}
 
 \begin{frame}
-  \frametitle{Original, Upsampled, and Sinc-Interpolated Spectra}
-
-  Here are the magnitude Fourier transforms of the original,
-  upsampled, and sinc-interpolated cat.
-
-  \centerline{
-    \begin{tikzpicture}
-      \node[inner sep=0pt](spectra) at (0,1.5) {
-        \includegraphics[height=5cm]{exp/downsampled_spectra.png}};
-      \node[inner sep=0pt](orig) at (4.5,2.8) {
-        \includegraphics[height=1.5cm]{exp/original.png}};
-      \node[inner sep=0pt](up) at (4.5,1.5) {
-        \includegraphics[height=1.5cm]{exp/upsample.png}};
-      \node[inner sep=0pt](sinc)  at (4.5,0.2) {
-        \includegraphics[height=1.5cm]{exp/sincinterp.png}};
-  \end{tikzpicture}}
-  \vspace*{-0.5cm}
-  \begin{itemize}
-  \item The zeros in the upsampled cat correspond to aliasing in its spectrum.
-  \item The ringing in the sinc-interpolated cat corresponds to the
-    sharp cutoff, at pi/4, of its spectrum.
-  \end{itemize}
-\end{frame}
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Deep Voxel Flow}
-\setcounter{subsection}{1}
-
-\begin{frame}
-  \frametitle{\href{https://openaccess.thecvf.com/content_ICCV_2017/papers/Liu_Video_Frame_Synthesis_ICCV_2017_paper.pdf}{Video Frame Synthesis Using Deep Voxel Flow}\\\begin{small}Liu et al., ICCV 2017\end{small}}
-  \centerline{\includegraphics[width=4.5in]{figs/liu17iccv4a.png}}
-  \begin{small}Image (c) ICCV and the authors\end{small}
-\end{frame}
-
-\begin{frame}
-  \frametitle{\href{https://openaccess.thecvf.com/content_ICCV_2017/papers/Liu_Video_Frame_Synthesis_ICCV_2017_paper.pdf}{Video Frame Synthesis Using Deep Voxel Flow}\\\begin{small}Liu et al., ICCV 2017\end{small}}
+  \frametitle{Summary of interpolation methods}
 
   \begin{itemize}
-  \item Objective: Given video frames at times $0$ and $1$, generate
-    missing frame at time $t\in(0,1)$.
-  \item Voxel Flow: Generated frame is made by copying pixels from frames $0$ and $1$, with
-    some shift in position, $(\Delta x,\Delta y)$.
-  \item The coordinate shift $(\Delta x,\Delta y)$ is (almost) a {\bf piece-wise affine} function
-    of $(x,y)$, so it is (almost) equivalent to a  mapping based on Barycentric coordinates---but
-    without ever explicitly choosing the triangle locations.
-  \item When $(x-\Delta x,y-\Delta y)$  are non-integer, the input pixels are
-    constructed using {\bf bilinear interpolation}.
+  \item PWC interpolation results in a blocky image
+  \item Sinc interpolation results in a smooth image, and would be
+    perfect if the input image was infinite in size, but since
+    real-world images have edges, the sinc interpolation produces
+    ripple artifacts
+  \item Bilinear interpolation is a very efficient solution with good results
+  \item Better results are available using deep-learning-based
+    super-resolution neural nets, but only after the neural net has
+    been trained for a few weeks!
   \end{itemize}
 \end{frame}
-
-\begin{frame}
-  \frametitle{Voxel Flow}
-
-  The generated frame, $\mathbf{\hat{Y}}(y,x,t)$, is generated as a
-  linear convex interpolation between selected pixels of the two
-  reference images, $\mathbf{X}(y,x,0)$ and $\mathbf{X}(y,x,1)$:
-  \begin{displaymath}
-    \mathbf{\hat{Y}}(y,x,t)=
-    \left(1-\Delta t\right)\mathbf{X}\left(y-\Delta y,x-\Delta x,0\right)+
-    \Delta t\mathbf{X}\left(y+\Delta y,x+\Delta x,1\right)
-  \end{displaymath}
-  where $\Delta t\in(0,1)$.
-\end{frame}
-
-\begin{frame}
-  \frametitle{Piece-Wise (Nearly) Affine}
-
-  The voxel flow field is generated as
-  \begin{displaymath}
-    \mathbf{F}=(\Delta x,\Delta y,\Delta t)={\mathcal H}\left(\mathbf{X};\theta\right)
-  \end{displaymath}
-  where ${\mathcal H}\left(\mathbf{X};\theta\right)$ uses:
-  \begin{itemize}
-  \item A series of CNN layers with ReLU nonlinearity, to compute a
-    piece-wise affine function of $\mathbf{X}$, then
-  \item A final layer with a $\tanh$ nonlinearity, squashing the output
-    to the range $\Delta x\in\left(-1,1\right)$,
-    $\Delta y\in\left(-1,1\right)$.
-  \end{itemize}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Piece-Wise (Nearly) Affine}
-
-  \centerline{\includegraphics[width=4.5in]{figs/liu17iccv1.png}}
-  \begin{small}Image (c) ICCV and the authors\end{small}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Bilinear Interpolation}
-
-  The reference pixels, $\left(y-\Delta y,x-\Delta x\right)$ and
-  $\left(y+\Delta y,x+\Delta x\right)$, are usually not integers, so
-  they are constructed using bilinear interpolation:
-  \begin{displaymath}
-    \mathbf{\hat{Y}}(y,x,t) =
-    \sum_{i,j,k\in\left\{0,1\right\}}\mathbf{W}^{ijk}\mathbf{X}(\mathbf{V}^{ijk}),
-  \end{displaymath}
-  where:
-  \begin{align*}
-    \mathbf{V}^{000}&=\left(\lfloor x-\Delta x\rfloor,\lfloor y-\Delta y\rfloor,0\right)\\
-    \mathbf{V}^{100}&=\left(\lceil x-\Delta x\rceil,\lfloor y-\Delta y\rfloor,0\right)\\
-    &\vdots\\
-    \mathbf{V}^{111}&=\left(\lceil x+\Delta x\rceil,\lceil y+\Delta y\rceil,1\right)
-  \end{align*}
-  and the weights $\mathbf{W}^{ijk}$ are constructed according to bilinear interpolation.
-\end{frame}
-    
-\begin{frame}
-  \frametitle{Differentiable}
-
-  Because bilinear interpolation is a piece-wise linear function of
-  $\Delta x$ and $\Delta y$, the error can be differentiated
-  w.r.t. those parameters.  From the original paper:
-  \centerline{\includegraphics[height=2in]{figs/liu17iccv7.png}}
-\end{frame}
-    
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}
 \setcounter{subsection}{1}
 
 \begin{frame}
-  \frametitle{How to Make a Talking Head}
-  \centerline{\includegraphics[height=0.75in]{mp7_image_warping_points.jpg}\includegraphics[height=0.75in]{mp7_image_warped.jpg}}
-  \begin{align*}
-    \mbox{lip\_height,width} &= \mbox{NeuralNet}\left(\mbox{audio features}\right)\\
-    \mbox{out\_triangs} &= \mbox{LinearlyInterpolate}\left(\mbox{inp\_triangs,lip\_height,width}\right)\\
-    \mbox{inp\_coord} &= \mbox{BaryCentric}\left(\mbox{out\_coord,inp\_triangs,out\_triangs}\right)\\
-    \mbox{out\_image} &= \mbox{BilinearInterpolate}\left(\mbox{inp\_coord,inp\_image}\right)
-  \end{align*}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Barycentric Coordinates}
-
-  \begin{itemize}
-  \item For each of the triangles, find $\vec\lambda=X_k^{-1}\vec{x}$.
-  \item Choose the triangle for which all of the $\lambda$ coefficients
-    are $0\le\lambda\le 1$.
-  \item Find $\vec{u}=U_k\vec\lambda$.
-  \item Estimate $I(v,u)$ using bilinear interpolation.
-    \[
-    I(v,u) = \sum_m\sum_n I[n,m] h(v-n,u-m)
-    \]    
-  \item Set $J[y,x]=I(v,u)$.
-  \end{itemize}
-\end{frame}
-
-\begin{frame}
-  \frametitle{Deep Voxel Flow: PWL$\Rightarrow$End-to-end differentiable}
-
-  \centerline{\includegraphics[width=4.5in]{figs/liu17iccv1.png}}
-  \begin{small}Image (c) ICCV and the authors\end{small}
+  \frametitle{Strategy}
+  \begin{enumerate}
+  \item Use MMSE affine projection to rotate, scale, and shear the XRMB
+    points so that they match the shape of the MRI as well as possible.
+  \item Draw triangles on the MRI so that every pixel is inside a triangle.
+  \item Move the triangles.
+  \item Map each integer pixel in the target image to a real-valued pixel in the original image
+    using barycentric coordinates
+  \item Use bilinear interpolation to find the color of the pixel 
+  \end{enumerate}
 \end{frame}
 
 \end{document}

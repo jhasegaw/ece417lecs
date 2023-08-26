@@ -55,8 +55,6 @@ ax.set_xlabel('Parameter 2')
 fig.tight_layout()
 fig.savefig('exp/gradient_descent.png')
 
-exit()
-
 #####################################################################
 # Video of forward propagation
 

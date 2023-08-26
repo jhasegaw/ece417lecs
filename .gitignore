@@ -11,3 +11,6 @@
 *.synctex.gz
 lec*.pdf
 exp
+.ipynb_checkpoints
+foo.tex
+.#*

@@ -1,5 +1,5 @@
 lec  = lec20
-figs = lec20_forward.gif lec20_backward.gif exp/800px-Typical_cnn.png
+figs = exp/gradient_descent.png exp/forward0.png exp/800px-Typical_cnn.png exp/backward0.png exp/800px-Paracas_National_Reserve,_Ica,_Peru-3April2011.jpg exp/450px-Sky-3.jpg exp/Max_pooling.png
 
 all: $(lec).pdf 
 

@@ -1,0 +1,608 @@
+\documentclass{beamer}
+\usepackage{tikz,amsmath,hyperref,graphicx,stackrel,animate}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc,dsp,chains}
+\newcommand{\argmax}{\operatornamewithlimits{argmax}}
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\mode<presentation>{\usetheme{Frankfurt}}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 19: Exam 2 Review}
+\author{Mark Hasegawa-Johnson}
+\date{ECE 417: Multimedia Signal Processing, Fall 2021}  
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Topics]{Topics}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Topics}
+
+  \begin{enumerate}
+  \item HW3 (lec.~8, 11): Gaussians, classifiers, and GMMs
+    \begin{itemize}
+    \item Reading:
+      \href{http://faculty.washington.edu/fxia/courses/LING572/EM_bilmes98.pdf}{\color{blue}A Gentle Tutorial\ldots}
+    \end{itemize}
+  \item MP3 (lec.~12): PCA
+    \begin{itemize}
+    \item Reading:
+      \href{http://hans.fugal.net/comps/papers/turk_1991.pdf}{\color{blue}Face Recognition Using Eigenfaces}
+    \end{itemize}
+  \item HW4 (lec.~13-14): EM, HMMs
+    \begin{itemize}
+    \item Reading:
+      \href{https://ieeexplore.ieee.org/document/18626?arnumber=18626}{\color{blue}A Tutorial\ldots}
+    \end{itemize}
+  \item MP4 (lec.~15-16): Baum-Welch, scaled forward-backward
+  \end{enumerate}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Gaussians]{Gaussians and GMM}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Multivariate Gaussian}
+
+  \begin{displaymath}
+    p_{\vec{X}}(\vec{x})=\frac{1}{(2\pi)^{D/2}|\Sigma|^{1/2}}
+    e^{-\frac{1}{2}(\vec{x}-\vec\mu)^T\Sigma^{-1}(\vec{x}-\vec\mu)}
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Mahalanobis Distance}
+
+  A contour plot of the Gaussian pdf is a set of ellipses.  Each
+  ellipse shows the set of points where the Mahalanobis distance
+  $d_\Sigma(\vec{x},\vec\mu)$ is equal to a  constant:
+  \begin{displaymath}
+    d_\Sigma(\vec{x},\vec\mu) = (\vec{x}-\vec\mu)^T\Sigma^{-1}(\vec{x}-\vec\mu)
+  \end{displaymath}
+  For example, if the covariance matrix is diagonal, then
+  \begin{displaymath}
+    d_\Sigma(\vec{x},\vec\mu) = \sum_{d=1}^D\frac{(x_d-\mu_d)^2}{\sigma_d^2}~~\mbox{if}~~
+    \Sigma=\left[\begin{array}{cccc}
+        \sigma_1^2&0&\cdots&0\\
+        0&\sigma_2^3&\cdots&0\\
+        \vdots&\vdots&\ddots&\cdots\\
+        0&0&\cdots&\sigma_D^2\end{array}
+        \right]
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Bayesian Classifiers}
+  
+  A Bayesian classifier chooses a label, $y\in\left\{0\ldots N_Y-1\right\}$, that has
+    the minimum probability of error given an observation,
+    $\vec{x}\in\Re^D$:
+  \begin{align*}
+    \hat{y} &= \argmin_{y} \Pr\left\{Y \ne y|\vec{X}=\vec{x}\right\}\\
+    &= \argmax_{y} \Pr\left\{Y = y|\vec{X}=\vec{x}\right\}\\
+    &= \argmax_{y} p_{Y|\vec{X}}(y|\vec{x})\\
+    &= \argmax_{y} p_Y(\hat{y}) p_{\vec{X}|Y}(\vec{x}|y)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The four Bayesian probabilities}
+
+  \begin{itemize}
+  \item The {\bf posterior} and {\bf evidence},
+    $p_{Y|\vec{X}}(y|\vec{x})$ and $p_{\vec{X}}(\vec{x})$, can only be learned
+    if you have lots and lots of training  data.
+  \item The {\bf prior}, $p_Y(y)$, is very easy to learn.
+  \item The {\bf likelihood}, $p_{\vec{X}|Y}(\vec{x}|y)$ can be learned from a
+    medium-sized training corpus, if you use a parametric model like a Gaussian or
+    GMM.
+  \end{itemize}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{Maximum Likelihood Estimation}
+
+  {\bf Maximum likelihood estimation} finds the parameters that
+  maximize the likelihood of the data.
+  \begin{displaymath}
+    \hat{\Theta}_{ML} = \argmax p\left({\mathcal D}|\Theta\right)
+  \end{displaymath}
+  Usually we assume that the data are sampled independently and
+  identically distributed, so that
+  \begin{align*}
+    \hat{\Theta}_{ML} &= \argmax \prod_{i=0}^{n-1}p_{\vec{X}|Y}(\vec{x}_i|y_i)\\
+    &= \argmax \sum_{i=0}^{n-1}\ln p_{\vec{X}|Y}(\vec{x}_i|y_i)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Example: Gaussians}
+  \begin{align*}
+    \hat{\Theta}_{ML}
+    &= \argmin \sum_{i=0}^{n-1}\left(\ln|\Sigma_{y_i}|
+    +(\vec{x}_i-\vec\mu_{y_i})^T\Sigma_{y_i}^{-1}(\vec{x}_i-\vec\mu_{y_i})\right)
+  \end{align*}
+  If we differentiate, and set the derivative to zero, we get
+  \begin{align*}
+    \hat\mu_{y,ML} &= \frac{1}{n_y}\sum_{i:y_i=y}\vec{x}_i\\
+    \hat\Sigma_{y,ML} &= \frac{1}{n_y}\sum_{i:y_i=y}(\vec{x}_i-\vec\mu_y)(\vec{x}_i-\vec\mu_y)^T
+  \end{align*}
+  where $n_y$ is the number of tokens from class $y_i=y$.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Gaussian Mixture Models}
+
+  A Gaussian mixture model is a pdf with the form:
+  \[
+  p_{\vec{X}}(\vec{x}) = \sum_{k=0}^{K-1}c_{k}{\mathcal N}(\vec{x}|\vec\mu_{k},\Sigma_{k})
+  \]
+  \ldots where, in order to make sure that $1=\int
+  p_{\vec{X}}(\vec{x})d\vec{x}$, we have to make sure that
+  \[
+  c_{k}\ge 0~~~\mbox{and}~~~\sum_k c_{k}=1
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{EM Re-estimation for Gaussian Mixture Models}
+
+  \begin{align*}
+    c_{k} &= \frac{1}{n}\sum_{i=1}^n\gamma_i(k),\\
+    \vec\mu_{k} &=\frac{\sum_{i}\gamma_i(k)\vec{x}_i}{\sum_i\gamma_i(k)},\\
+    \Sigma_{k} &=
+    \frac{\sum_{i}\gamma_i(k)(\vec{x}_i-\vec\mu_{k})(\vec{x}_i-\vec\mu_{k})^T}{\sum_i\gamma_i(k)}
+  \end{align*}
+  where the gamma function is
+  \begin{align*}
+    \gamma_i(k) &=
+    p(k_i=k|\vec{x}_i) =
+    \frac{c_{k}{\mathcal N}(\vec{x}_i|\vec\mu_{k},\Sigma_{k})}{\sum_{\ell=1}^K c_{\ell}{\mathcal N}(\vec{x}_i|\vec\mu_{\ell},\Sigma_{\ell})}
+  \end{align*}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[PCA]{PCA}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Properties of symmetric matrices}
+  If $A$ is symmetric with $D$ eigenvectors, and $D$ distinct eigenvalues, then
+  \[
+  A=V\Lambda V^T
+  \]
+  \[
+  \Lambda = V^TAV
+  \]
+  \[
+  VV^T=V^TV=I
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Nearest Neighbors Classifier}
+
+  A ``nearest neighbors classifier'' makes the following
+  guess: the test vector is an image of the same person as the
+  closest training vector:
+  \[
+  \hat{y}_{\mbox{test}} = y_{m^*},~~~
+  m^*=\argmin_{m=0}^{M-1}\Vert\vec{x}_m-\vec{x}_{\mbox{test}}\Vert
+  \]
+  where ``closest,'' here, means Euclidean distance:
+  \[
+  \Vert\vec{x}_m-\vec{x}_{\mbox{test}}\Vert =
+  \sqrt{\sum_{d=0}^{D-1} (x_{md}-x_{\mbox{test},d})^2}
+  \]
+\end{frame}
+
+\begin{frame}
+  \frametitle{Principal Component Directions}
+
+  The principal component directions, $V=[\vec{v}_0,\ldots,\vec{v}_{D-1}]$,
+  are the eigenvectors of the sample covariance matrix:
+  \begin{displaymath}
+    \Sigma =\frac{1}{n-1}V\Lambda V^T,
+  \end{displaymath}
+
+  $\Sigma$ is the inner product of the centered data matrix, $X$, with itself:
+  \begin{displaymath}
+    \Sigma = \frac{1}{n-1} X^T X
+  \end{displaymath}
+  where
+  \begin{displaymath}
+    X= \left[\begin{array}{c}
+        (\vec{x}_1-\vec\mu)^T\\(\vec{x}_2-\vec\mu)^T\\\vdots\\(\vec{x}_n-\vec\mu)^T
+      \end{array}\right]
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Principal Components}
+
+  The principal components of a vector $\vec{x}_i$ are the elements of
+  its projection onto $V$:
+  \begin{displaymath}
+  \vec{y}_i = V^T(\vec{x}_i-\vec\mu)
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{PCA diagonalizes the covariance}
+
+  Rotate the whole data matrix into the principal component axes:
+  \begin{displaymath}
+    Y = \left[\begin{array}{c}\vec{y}_1^T\\\vec{y}_2^T\\\vdots\\\vec{y}_n^T\end{array}\right]
+    = XV
+  \end{displaymath}
+  The covariance of the rotated data matrix is diagonal:
+  \begin{displaymath}
+    Y^TY = V^TX^TXV = \Lambda
+    =\left[
+      \begin{array}{cccc}
+        \lambda_1 & 0 & \cdots & 0\\
+        0 & \lambda_2 & \cdots &  0\\
+        \vdots & \vdots & \ddots & \vdots \\
+        0 & 0 & \cdots & \lambda_D
+      \end{array}
+      \right]
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Energy Spectrum}
+
+  The total energy is the same in either the $X$ space or the $Y$ space:
+  \begin{displaymath}
+    \sum_{d=1}^D \sigma_d^2 = \frac{1}{n-1}\mbox{trace}\left(X^TX\right)
+    = \frac{1}{n-1}\mbox{trace}\left(Y^TY\right)
+    =\frac{1}{n-1}\sum_{d=1}^D \lambda_d
+  \end{displaymath}
+
+  The percent of energy expressed by the first $k$ principal components is:
+  \begin{displaymath}
+    \mbox{PoE}(k) = 100\times \frac{\sum_{d=1}^k\lambda_d}{\sum_{d=1}^D\lambda_D}
+  \end{displaymath}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Gram Matrix}
+  \begin{itemize}
+  \item $X^TX$ is usually called the sum-of-squares matrix.
+    $\frac{1}{n-1}X^TX$ is the sample covariance.
+  \item $G=XX^T$ is called the gram matrix.
+    Its $(i,j)^{\textrm{th}}$ element is the dot product between
+    the $i^{\textrm{th}}$ and $j^{\textrm{th}}$ data samples:
+    \[
+    g_{ij}=(\vec{x}_i-\vec\mu)^T(\vec{x}_j-\vec\mu)
+    \]
+  \item The sum-of-squares matrix and the gram matrix have the same
+    eigenvalues, but different eigenvectors:
+    \[
+    \Lambda = V^T (X^TX) V = U^T (XX^T) U
+    \]
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Singular Value Decomposition}
+  {\bf ANY $M\times D$ MATRIX}, $X$, can be written as $X=USV^T$.
+  \begin{itemize}
+  \item $U=[\vec{u}_0,\ldots,\vec{u}_{M-1}]$ are the eigenvectors of $XX^T$.
+  \item $V=[\vec{v}_0,\ldots,\vec{v}_{D-1}]$ are the eigenvectors of $X^TX$.
+  \item
+    $S=\left[\begin{array}{ccccc}s_0&0&0&0&0\\0&\ldots&0&0&0\\0&0&s_{\min(D,M)-1}&0&0\end{array}\right]$
+    are the singular values, $s_d=\sqrt{\lambda_d}$.
+  \end{itemize}
+  $S$ has some all-zero columns if $M>D$, or all-zero rows if $M<D$.
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[HMM]{Expectation Maximization and HMMs}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Expectation Maximization}
+
+  Expectation maximization maximizes the expected log likelihood,
+  often called the ``Q function:''
+  \begin{align*}
+    Q(\Theta,\hat\Theta) 
+    &= E\left[\ln p({\mathcal D}_v,{\mathcal D}_h|\Theta)\left|{\mathcal D}_v,\hat\Theta\right.\right]
+  \end{align*}
+
+  The Q function is useful because:
+  \begin{enumerate}
+  \item For many pdfs, it's possible to find $\Theta^*$ in one step, where
+    \begin{displaymath}
+      \Theta^* = \argmax_\Theta Q(\Theta,\hat\Theta)
+    \end{displaymath}
+  \item $\Theta^*$ is guaranteed to have better likelihood than $\hat\Theta$:
+    \begin{displaymath}
+      {\mathcal L}(\Theta^*) \ge {\mathcal L}(\hat\Theta)
+    \end{displaymath}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Hidden Markov Model}
+
+  \begin{center}
+    \begin{tikzpicture}[->,>=stealth',shorten >=1pt,auto,node distance=3cm,thick,
+        state/.style={circle,thick,draw=blue,text=black,text centered,text width=0.25cm},
+        obs/.style={rectangle,thick,draw=blue,text=black,fill=orange!35!white,text centered,text width=0.25cm}
+      ]
+      \node[state] (q1) at (0,0) {1};
+      \node[state] (q2) at (2.5,0) {2};
+      \node[state] (q3) at (5,0) {3};
+      \node[obs] (x1) at (0,-2) {$\vec{x}$};
+      \node[obs] (x2) at (2.5,-2) {$\vec{x}$};
+      \node[obs] (x3) at (5,-2) {$\vec{x}$};
+      \path[every node/.style={font=\sffamily\small,
+  	  fill=white,inner sep=1pt}]
+      (q1) edge [out=120,in=60,looseness=4] node {$a_{11}$} (q1)
+      edge [out=30,in=150] node {$a_{12}$} (q2)
+      edge [out=45,in=135] node {$a_{13}$} (q3)
+      edge [out=-90,in=90] node {$b_1(\vec{x})$} (x1)
+      (q2) edge [out=120,in=60,looseness=4] node {$a_{22}$} (q2)
+      edge [out=180,in=0] node {$a_{21}$} (q1)
+      edge [out=30,in=150] node {$a_{23}$} (q3)
+      edge [out=-90,in=90] node {$b_2(\vec{x})$} (x2)
+      (q3) edge [out=120,in=60,looseness=4] node {$a_{33}$} (q3)
+      edge [out=180,in=0] node {$a_{32}$} (q2)
+      edge [out=-160,in=-20] node {$a_{31}$} (q1)
+      edge [out=-90,in=90] node {$b_3(\vec{x})$} (x3);
+    \end{tikzpicture}
+  \end{center}
+  \begin{enumerate}
+  \item Start in state $q_t=i$ with pmf $\pi_i$.
+  \item Generate an observation, $\vec{x}$, with pdf $b_i(\vec{x})$.
+  \item Transition to a new state, $q_{t+1}=j$, according to pmf $a_{ij}$.
+  \item Repeat.
+  \end{enumerate}
+\end{frame}
+
+
+\begin{frame}
+  \frametitle{The Three Problems for an HMM}
+
+  \begin{enumerate}
+  \item {\bf Recognition:} Given two different HMMs, $\Lambda_1$ and
+    $\Lambda_2$, and an observation sequence $X$.  Which HMM was more
+    likely to have produced $X$?  In other words, 
+    $p(X|\Lambda_1)>p(X|\Lambda_2)$?
+  \item {\bf Segmentation:} What is $p(q_t=i|X,\Lambda)$?
+  \item {\bf Training:} Given an initial HMM $\Lambda$, and an
+    observation sequence $X$, can we find $\Lambda'$ such that
+    $p(X|\Lambda') > p(X|\Lambda)$?
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Forward Algorithm}
+
+  Definition: $\alpha_t(i) \equiv p(\vec{x}_1,\ldots,\vec{x}_t,q_t=i|\Lambda)$.  Computation:
+  \begin{enumerate}
+  \item {\bf Initialize:}
+    \[
+    \alpha_1(i) = \pi_i b_i(\vec{x}_1),~~~1\le i\le N
+    \]
+  \item {\bf Iterate:}
+    \begin{align*}
+      \alpha_{t}(j) &= \sum_{i=1}^N \alpha_{t-1}(i) a_{ij}b_j(\vec{x}_t),~~1\le j\le N,~2\le t\le T
+    \end{align*}
+  \item {\bf Terminate:}
+    \[
+    p(X|\Lambda) = \sum_{i=1}^N \alpha_T(i)
+    \]
+  \end{enumerate}
+\end{frame}
+  
+\begin{frame}
+  \frametitle{The Backward Algorithm}
+
+  Definition: $\beta_t(i) \equiv p(\vec{x}_{t+1},\ldots,\vec{x}_T|q_t=i,\Lambda)$.  Computation:
+  \begin{enumerate}
+  \item {\bf Initialize:}
+    \[
+    \beta_T(i) = 1,~~~1\le i\le N
+    \]
+  \item {\bf Iterate:}
+    \begin{align*}
+      \beta_{t}(i) &= \sum_{j=1}^N a_{ij}b_j(\vec{x}_{t+1})\beta_{t+1}(j),~~1\le i\le N,~1\le t\le T-1
+    \end{align*}
+  \item {\bf Terminate:}
+    \[
+    p(X|\Lambda) = \sum_{i=1}^N \pi_ib_i(\vec{x}_1)\beta_1(i)
+    \]
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Segmentation}
+
+  \begin{enumerate}
+  \item {\bf The State Posterior:}
+    \begin{align*}
+      \gamma_t(i) & = p(q_t=i|X,\Lambda)
+      = \frac{\alpha_t(i)\beta_t(i)}{\sum_{k=1}^N\alpha_t(k)\beta_t(k)}
+    \end{align*}
+  \item {\bf The Segment Posterior:}
+    \begin{align*}
+      \xi_t(i,j) & = p(q_t=i,q_{t+1}=j|X,\Lambda)\\
+      &= \frac{\alpha_t(i)a_{ij}b_j(\vec{x}_{t+1})\beta_{t+1}(j)}{\sum_{k=1}^N\sum_{\ell=1}^N\alpha_t(k)a_{k\ell}b_\ell(\vec{x}_{t+1})\beta_{t+1}(\ell)}
+    \end{align*}
+  \end{enumerate}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Baum-Welch]{Baum-Welch and Scaled Forward-Backward}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{The Baum-Welch Algorithm: Initial and Transition Probabilities}
+
+  \begin{enumerate}
+  \item {\bf Initial State Probabilities:}
+    \begin{align*}
+      \pi_i' &=\frac{\sum_{sequences} \gamma_1(i)}{\mbox{\# sequences}}
+    \end{align*}
+  \item {\bf Transition Probabilities:}
+    \begin{align*}
+      a_{ij}' &=\frac{\sum_{t=1}^{T-1} \xi_t(i,j)}{\sum_{j=1}^N\sum_{t=1}^{T-1}\xi_t(i,j)}
+    \end{align*}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Baum-Welch Algorithm: Observation Probabilities}
+  \begin{enumerate}
+  \item {\bf Discrete Observation Probabilities:}
+    \begin{align*}
+      b_{j}'(k) &=\frac{\sum_{t:\vec{x}_t=k} \gamma_t(j)}{\sum_{t}\gamma_t(j)}
+    \end{align*}
+  \item {\bf Gaussian Observation PDFs:}
+    \begin{displaymath}
+      \vec\mu_{i}' = \frac{\sum_{t=1}^T\gamma_t(i)\vec{x}_{t}}{\sum_{t=1}^T\gamma_t(i)}
+    \end{displaymath}
+    \begin{displaymath}
+      \Sigma_{i}' = \frac{\sum_{t=1}^T\gamma_t(i)(\vec{x}_{t}-\vec\mu_{i})(\vec{x}_t-\vec\mu_i)^T}{\sum_{t=1}^T\gamma_t(i)}
+    \end{displaymath}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Scaled Forward Algorithm: The Variables}
+
+  The scaled forward algorithm uses not just one, but three variables:
+  \begin{enumerate}
+  \item The intermediate forward probability:
+    \begin{displaymath}
+      \tilde\alpha_t(j) = p(q_t=j,\vec{x}_t|\vec{x}_1,\ldots,\vec{x}_{t-1},\Lambda)
+    \end{displaymath}
+  \item The scaling factor:
+    \begin{displaymath}
+      g_t = p(\vec{x}_t|\vec{x}_1,\ldots,\vec{x}_{t-1},\Lambda)
+    \end{displaymath}
+  \item The scaled forward probability:
+    \begin{displaymath}
+      \hat\alpha_t(j) = p(q_t=j|\vec{x}_1,\ldots,\vec{x}_{t},\Lambda)
+    \end{displaymath}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Scaled Forward Algorithm}
+
+  \begin{enumerate}
+  \item {\bf Initialize:}
+    \[
+    \hat\alpha_1(i) = \frac{1}{g_1}\pi_i b_i(\vec{x}_1)
+    \]
+  \item {\bf Iterate:}
+    \begin{align*}
+      \tilde\alpha_{t}(j) &= \sum_{i=1}^N \hat\alpha_{t-1}(i) a_{ij}b_j(\vec{x}_t)\\
+      g_t &= \sum_{j=1}^N \tilde\alpha_t(j)\\
+      \hat\alpha_{t}(j) &= \frac{1}{g_t}\tilde\alpha_t(j)
+    \end{align*}
+  \item {\bf Terminate:}
+    \[
+    \ln p(X|\Lambda) = \sum_{t=1}^T \ln g_t
+    \]
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Scaled Backward Algorithm}
+
+  This can also be done for the backward algorithm:
+  \begin{enumerate}
+  \item {\bf Initialize:}
+    \[
+    \hat\beta_T(i) = 1,~~1\le i\le N
+    \]
+  \item {\bf Iterate:}
+    \begin{align*}
+      \tilde\beta_{t}(i) &= \sum_{j=1}^N a_{ij}b_j(\vec{x}_{t+1})\hat\beta_{t+1}(j)\\
+      \hat\beta_t(i) &= \frac{1}{c_t}\tilde\beta_t(i)
+    \end{align*}
+    Rabiner uses $c_t=g_t$, but I recommend instead that you use
+    \begin{displaymath}
+      c_t = \max_i\tilde\beta_t(i)
+    \end{displaymath}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{State and Segment Posteriors, using the Scaled Forward-Backward Algorithm}
+
+  Because both $g_t$ and $c_t$ are independent of the state number
+  $i$, we can use $\hat\alpha$ and $\hat\beta$ in place of $\alpha$
+  and $\beta$:
+  \begin{enumerate}
+  \item {\bf The State Posterior:}
+    \begin{align*}
+      \gamma_t(i) & = p(q_t=i|X,\Lambda)
+      = \frac{\hat\alpha_t(i)\hat\beta_t(i)}{\sum_{k=1}^N\hat\alpha_t(k)\hat\beta_t(k)}
+    \end{align*}
+  \item {\bf The Segment Posterior:}
+    \begin{align*}
+      \xi_t(i,j) & = p(q_t=i,q_{t+1}=j|X,\Lambda)\\
+      &= \frac{\hat\alpha_t(i)a_{ij}b_j(\vec{x}_{t+1})\hat\beta_{t+1}(j)}{\sum_{k=1}^N\sum_{\ell=1}^N\hat\alpha_t(k)a_{k\ell}b_\ell(\vec{x}_{t+1})\hat\beta_{t+1}(\ell)}
+    \end{align*}
+  \end{enumerate}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Summary]{Summary}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Summary: Topics}
+  
+  \begin{enumerate}
+  \item HW3 (lec.~8, 11): Gaussians, classifiers, and GMMs
+    \begin{itemize}
+    \item Reading:
+      \href{http://faculty.washington.edu/fxia/courses/LING572/EM_bilmes98.pdf}{\color{blue}A Gentle Tutorial\ldots}
+    \end{itemize}
+  \item MP3 (lec.~12): PCA
+    \begin{itemize}
+    \item Reading:
+      \href{http://hans.fugal.net/comps/papers/turk_1991.pdf}{\color{blue}Face Recognition Using Eigenfaces}
+    \end{itemize}
+  \item HW4 (lec.~13-14): EM, HMMs
+    \begin{itemize}
+    \item Reading:
+      \href{https://ieeexplore.ieee.org/document/18626?arnumber=18626}{\color{blue}A Tutorial\ldots}
+    \end{itemize}
+  \item MP4 (lec.~15-16): Baum-Welch, scaled forward-backward
+  \end{enumerate}
+\end{frame}
+
+
+
+\end{document}
+
