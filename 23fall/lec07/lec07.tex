@@ -60,7 +60,7 @@
     removing the $i^{\text{th}}$ row and $j^{\text{th}}$ column.  The
     determinant may also be written as the product of the eigenvalues:
     \begin{displaymath}
-      \left|\mathbf{X}\right| = \sum_{i=1}^n \lambda_i(\mathbf{X})
+      \left|\mathbf{X}\right| = \prod_{i=1}^n \lambda_i(\mathbf{X})
     \end{displaymath}
   \end{itemize}
 \end{frame}
@@ -119,9 +119,9 @@
 
   Let's talk about six types of derivatives:
   \centerline{\begin{tabular}{|c|c|ccc|}\hline
-      \multicolumn{2}{|c|}{}&\multicolumn{3}{|c|}{Denominator}\\
+      \multicolumn{2}{|c|}{}&\multicolumn{3}{|c|}{Numerator}\\
       \multicolumn{2}{|c|}{}&Scalar & Vector & Matrix\\\hline
-      \multirow{3}{*}{\rotatebox{90}{Numerator}} &
+      \multirow{3}{*}{\rotatebox{90}{Denominator}} &
       Scalar &\rule{0pt}{15pt}
       $\frac{\partial y}{\partial x}$ &
       $\frac{\partial\mathbf{y}}{\partial x}$ &
@@ -498,7 +498,7 @@
     \frac{\partial\mathbf{x}^T\mathbf{x}}{\partial\mathbf{x}} &= 2\mathbf{x}^T\\
     \frac{\partial(y_i-\mathbf{a}^T\mathbf{x}_i)^2}{\partial\mathbf{a}}
     &= 2(\mathbf{a}^T\mathbf{x}_i-y_i)\mathbf{x}_i^T\\
-    \frac{\partial\mathbf{A}\mathbf{x}}{\mathbf{x}}&= \mathbf{A}
+    \frac{\partial\mathbf{A}\mathbf{x}}{\partial\mathbf{x}}&= \mathbf{A}
   \end{align*}    
 \end{frame}
 
@@ -728,7 +728,7 @@
       =\sum_{i=1}^m\sum_{k=1}^n a_{i,k}b_{k,i}
     \end{displaymath}
   \item The $(j,k)^{\text{th}}$ element of the matrix 
-    $\mathbf{D}=\mathbf{A}\mathbf{B}$ is $d_{j,k}=\sum_{i=1}^mb_{j,i}a_{i,k}$.
+    $\mathbf{D}=\mathbf{B}\mathbf{A}$ is $d_{j,k}=\sum_{i=1}^mb_{j,i}a_{i,k}$.
     The trace sums the main diagonal, so
     \begin{displaymath}
       \tr(\mathbf{B}\mathbf{A})=\sum_{k=1}^md_{k,k}=\sum_{k=1}^n\sum_{i=1}^m b_{k,i}a_{i,k}
@@ -887,9 +887,9 @@
   \frametitle{Types of derivatives}
 
   \centerline{\begin{tabular}{|c|c|ccc|}\hline
-      \multicolumn{2}{|c|}{}&\multicolumn{3}{|c|}{Denominator}\\
+      \multicolumn{2}{|c|}{}&\multicolumn{3}{|c|}{Numerator}\\
       \multicolumn{2}{|c|}{}&Scalar & Vector & Matrix\\\hline
-      \multirow{3}{*}{\rotatebox{90}{Numerator}} &
+      \multirow{3}{*}{\rotatebox{90}{Denominator}} &
       Scalar &\rule{0pt}{15pt}
       $\frac{\partial y}{\partial x}$ &
       $\frac{\partial\mathbf{y}}{\partial x}$ &
@@ -953,7 +953,7 @@
     \frac{\partial \mathbf{x}^T\mathbf{x}}{\partial\mathbf{x}} &= 2\mathbf{x}^T\\
     \frac{\partial (y_i-\mathbf{a}^T\mathbf{x}_i)^2}{\partial\mathbf{a}}
     &= 2(\mathbf{a}^T\mathbf{x}_i-y_i)\mathbf{x}_i^T\\
-    \frac{\partial\mathbf{A}\mathbf{x}}{\mathbf{x}}
+    \frac{\partial\mathbf{A}\mathbf{x}}{\partial\mathbf{x}}
     &= \mathbf{A}
   \end{align*}    
 \end{frame}
