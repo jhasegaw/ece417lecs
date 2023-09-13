@@ -1,0 +1,199 @@
+\documentclass{beamer}
+\usepackage{tikz,amsmath,amssymb,hyperref,graphicx,stackrel,setspace,animate}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc}
+\newcommand{\argmax}{\operatornamewithlimits{argmax}}
+\newcommand{\argmin}{\operatornamewithlimits{argmin}}
+\mode<presentation>{\usetheme{Frankfurt}}
+\DeclareMathOperator*{\softmax}{softmax}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 10: Adaboost and the Viola-Jones Face Detector}
+\author{Mark Hasegawa-Johnson\\These slides are in the public domain}
+\date{ECE 417: Multimedia Signal Processing, Fall 2023}  
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Review]{Review: Neural Network}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Review: Images}
+
+  An image is a signal, or a stack of signals.  Often we write
+  $x[c,m,n]$ where $c$ is the color ($c\in\{1,2,3\}$), $m$ is the row
+  index, and $n$ is the column index.
+\end{frame}
+  
+\begin{frame}
+  \frametitle{Review: Convolutional Neural Nets}
+  \begin{enumerate}
+  \item Forward-prop is convolution:
+    \begin{align*}
+      z[l,d,m,n] &= w[l,d,c,m,n] \ast a[l-1,c,m,n]
+    \end{align*}
+  \item Back-prop is correlation:
+    \begin{align*}
+      \frac{\partial{\mathcal L}}{\partial a[l-1,c,m,n]} &=
+      w[l,d,c,m,n] \bigstar \frac{\partial{\mathcal L}}{\partial z[l,d,m,n]}
+    \end{align*}
+  \item Weight gradient is correlation:
+    \begin{align*}
+      \frac{\partial{\mathcal L}}{\partial w[l,d,c,m,n]} &=
+      \frac{\partial{\mathcal L}}{\partial z[l,d,m,n]} \bigstar a[l-1,c,m,n]
+    \end{align*}
+  \end{enumerate}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Detection]{The Face Detection Problem}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \centerline{\includegraphics[width=\textwidth]{exp/face_detection.jpg}}
+  \url{https://commons.wikimedia.org/wiki/File:Face_detection.jpg}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Face Detection: Problem Definition}
+
+\begin{verbatim}
+  for m in range(M):
+      for n in range(N):
+          for height in range(number_rows - row):
+              for width in range(number_cols - col):
+                  does (m,n,height,width) contain a face?
+\end{verbatim}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Why is Face Detection Difficult?}
+
+  A CNN face detector might detect a face of width $w$ and height $h$
+  by training a ``face detector'' filter, $f[m,n]$ of width $w$
+  and height $h$, then filtering the whole image to find the $(m,n)$
+  where the face is located:
+  \begin{align*}
+    z_{w,h}[m,n] &= f_{w,h}[m,n] \ast x[m,n]
+  \end{align*}
+  If the image is $M\times N$, this operation requires $w\times
+  h\times M\times N$ multiplications.
+\end{frame}
+\begin{frame}
+  \frametitle{Faces Come in Many Different Sizes}
+  \centerline{\includegraphics[width=\textwidth]{exp/fraunhofer.jpg}}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Faces Come in Many Different Sizes}
+  \begin{itemize}
+  \item Suppose the face width can be any size between $1\le w\le W$
+  \item Suppose the face height can be any size between $1\le h\le H$
+  \item Then we need $WH$ different filters, $f_{w,h}[m,n]$, so that
+    we can detect all the different faces
+  \item Total computational complexity is:
+    \begin{displaymath}
+      \sum_{w=1}^W\sum_{h=1}^H whMN = \frac{1}{4}(W+1)^2(H+1)^2MN~\text{multiplications/image}
+  \end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Features]{Haar-Like Features}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Haar-Like Features}
+
+  Viola and Jones (2004) proposed solving the computational complexity
+  problem by using very simple filters that they called ``Haar-like
+  features,'' because they resemble Haar wavelets.
+  \begin{enumerate}
+  \item Haar-like features require no multiplications, because for all
+    $n$, $f[n]$ is either $-1$ or $+1$.
+  \item Haar-like features also require very few additions, because of
+    a neat trick called the ``integral image.''
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{(1) Haar-like features require no multiplication}
+
+  Haar-like features are convolutions, $z[m,n]=f[m,n]\ast x[m,n]$, but
+  the filters are $f[m,n]\in\{-1,1\}$.  Shown below are 2-rectangle,
+  3-rectangle, and 4-rectangle filters.  The black pixels are
+  $f[m,n]=+1$, the white pixels are $f[m,n]=-1$. 
+
+  \centerline{\includegraphics[height=1in]{exp/haarlike.png}}
+  \url{https://commons.wikimedia.org/wiki/File:VJ_featureTypes.svg}
+\end{figure}
+
+\begin{frame}
+  \frametitle{(2) Haar-like features require few additions}
+
+  Haar-like feature require very few additions, because they take
+  advantage of an intermediate computation called the {\bf integral
+    image:}
+  \begin{displaymath}
+    ii[m,n] = \sum_{m'=1}^m\sum_{n'=1^n} x[m',n'],~~~1\le m\le M,1\le n\le N
+  \end{displaymath}
+  The integral image is computed just once, for the entire image.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Summing a rectangle: Three additions}
+
+  Using the integral image, the sum of all pixels inside a rectangle
+  can be computed with only three additions.
+  \begin{displaymath}
+    \sum_{m'=m}^{m+h}\sum_{n'=n}^{n+w}x[m',n'] = ii[m+h,n+w]-ii[m,n+w]-ii[m+h,n]+ii[m,n]
+  \end{displaymath}
+  
+  \centerline{\includegraphics[height=1in]{exp/rectangle.png}}
+  \url{https://commons.wikimedia.org/wiki/File:Prm_VJ_fig3_computeRectangleWithAlpha.png}
+\end{frame}
+\begin{frame}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \begin{align*}
+        &\sum_{m'=m}^{m+h}\sum_{n'=n}^{n+w}x[m',n']\\
+        &= ii[m+h,n+w]-ii[m,n+w]\\
+        &-ii[m+h,n]+ii[m,n]
+      \end{align*}
+      Figure: \url{https://commons.wikimedia.org/wiki/File:Integral_image_application_example.svg}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centerline{\includegraphics[height=\textheight]{exp/integralimage.png}}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Weak Classifier]{The Weak Classifier}
+\setcounter{subsection}{1}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[AdaBoost]{AdaBoost}
+\setcounter{subsection}{1}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Summary]{Summary}
+\setcounter{subsection}{1}
+
+
+\end{document}
+
