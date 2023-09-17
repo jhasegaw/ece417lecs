@@ -1,0 +1,236 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[BCE Loss]{Binary Cross Entropy  Loss}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Review: MSE}
+  
+  Until now, we've assumed that the loss function is MSE:
+  \[{\mathcal L} = \frac{1}{2n}\sum_{i=1}^n\Vert\mathbf{y}_{i}-\hat{y}(\mathbf{x}_i)\Vert^2 \]
+  \begin{itemize}
+  \item MSE makes sense if $\mathbf{y}$ and $\hat{y}$ are both
+    real-valued vectors, and we want to compute
+    $\mathbf{g}(\mathbf{x})_{MMSE}(\mathbf{x})=E\left[\mathbf{y}|\mathbf{x}\right]$.  But
+    what if $\mathbf{g}(\mathbf{x})$ and $\mathbf{y}$ are discrete-valued (i.e.,
+    classifiers?)
+  \item Surprise: MSE works surprisingly well, even with
+    discrete $\mathbf{y}$!
+  \item But a different metric, binary cross-entropy (BCE) works
+    slightly better.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{MSE with a binary target vector}
+  \begin{itemize}
+  \item Suppose $y$ is just a scalar binary classifier label,
+    $y\in\left\{0,1\right\}$ (for example: ``is it a dog or a cat?'')
+  \item Suppose that the input vector, $\mathbf{x}$, is not quite enough
+    information to tell us what $y$ should be.  Instead, $\mathbf{x}$ only tells us
+    the probability of $y=1$:
+    \[
+    y=\left\{\begin{array}{ll}
+    1 & \mbox{with probability}~p_{Y|\mathbf{X}}\left(1|\mathbf{x}\right)\\
+    0 & \mbox{with probability}~p_{Y|\mathbf{X}}\left(0|\mathbf{x}\right)
+    \end{array}\right.
+    \]
+  \item In the limit as $n\rightarrow\infty$, assuming that the
+    gradient descent finds the global optimum, the MMSE solution gives
+    us:
+    \begin{align*}
+      \mathbf{g}(\mathbf{x})(\mathbf{x}) &\rightarrow_{n\rightarrow\infty}  E\left[y|\mathbf{x}\right]\\
+      &= \left(1\times p_{Y|\mathbf{X}}\left(1|\mathbf{x}\right)\right) +
+      \left(0\times p_{Y|\mathbf{X}}\left(0|\mathbf{x}\right)\right)\\
+      &= p_{Y|\mathbf{X}}\left(1|\mathbf{x}\right)
+    \end{align*}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Pros and Cons of MMSE for Binary Classifiers}
+
+  \begin{itemize}
+  \item {\bf Pro:} In the limit as $n\rightarrow\infty$, the global optimum is
+    $\mathbf{g}(\mathbf{x})(\mathbf{x})\rightarrow p_{Y|\mathbf{X}}\left(1|\mathbf{x}\right)$.
+  \item {\bf Con:} The sigmoid nonlinearity is hard to train using
+    MMSE.  Remember the vanishing gradient problem: $\sigma'(wx)\rightarrow 0$
+    as $w\rightarrow\infty$, so after a few epochs of training,
+    the neural net just stops learning.
+  \item {\bf Solution:} Can we devise a different loss function (not
+    MMSE) that will give us the same solution
+    ($\mathbf{g}(\mathbf{x})(\mathbf{x})\rightarrow p_{Y|\mathbf{X}}\left(1|\mathbf{x}\right)$), but
+    without suffering from the vanishing gradient problem?
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Binary Cross Entropy}
+
+  Suppose we treat the neural net output as a noisy
+  estimator, $\hat{p}_{Y|\mathbf{X}}(y|\mathbf{x})$, of the unknown true pmf
+  $p_{Y|\mathbf{X}}\left(y|\mathbf{x}\right)$:
+  \[
+  \mathbf{g}(\mathbf{x})_i = \hat{p}_{Y|\mathbf{X}}(1|\mathbf{x}),
+  \]
+  so that
+  \begin{displaymath}
+    \hat{p}_{Y|\mathbf{X}}(y_i|\mathbf{x}_i)
+    =\begin{cases}\mathbf{g}(\mathbf{x})_i & y_i=1\\1-\mathbf{g}(\mathbf{x})_i & y_i=0\end{cases}
+  \end{displaymath}
+  The binary cross-entropy loss is the negative log probability of the
+  training data, assuming i.i.d. training examples:
+  \begin{align*}
+    {\mathcal L}_{BCE} &= -\frac{1}{n}\sum_{i=1}^n \ln\hat{p}_{Y|\mathbf{X}}(y_i|\mathbf{x}_i)\\
+    &= -\frac{1}{n}\sum_{i=1}^n
+    y_i\left(\ln\mathbf{g}(\mathbf{x})_i\right)+
+    (1-y_i)\left(\ln(1-\mathbf{g}(\mathbf{x})_i)\right)
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{The Derivative of BCE}
+
+  BCE is useful because it has the same solution as MSE, without
+  allowing the sigmoid to suffer from vanishing gradients.  Suppose
+  $\mathbf{g}(\mathbf{x})_i=\sigma(wh_i)$.
+  \begin{align*}
+    \nabla_w{\mathcal L}
+    &=
+    -\frac{1}{n}
+    \left(
+    \sum_{i:y_i=1}\nabla_w\ln\sigma(wh_i)
+    +\sum_{i:y_i=0}\nabla_w\ln(1-\sigma(wh_i))
+    \right)\\
+    &=
+    -\frac{1}{n}
+    \left(
+    \sum_{i:y_i=1}\frac{\nabla_w\sigma(wh_i)}{\sigma(wh_i)}
+    +\sum_{i:y_i=0}\frac{\nabla_w(1-\sigma(wh_i))}{1-\sigma(wh_i)}
+    \right)\\
+    &=
+    -\frac{1}{n}
+    \left(
+    \sum_{i:y_i=1}\frac{\mathbf{g}(\mathbf{x})_i(1-\mathbf{g}(\mathbf{x})_i)h_i}{\mathbf{g}(\mathbf{x})_i}
+    +\sum_{i:y_i=0}\frac{-\mathbf{g}(\mathbf{x})_i(1-\mathbf{g}(\mathbf{x})_i)h_i}{1-\mathbf{g}(\mathbf{x})_i}
+    \right)\\
+    &=
+    -\frac{1}{n}\sum_{i=1}^n
+    \left(y_i-\mathbf{g}(\mathbf{x})_i\right)h_i
+  \end{align*}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Why Cross-Entropy is Useful for Machine Learning}
+  Binary cross-entropy is useful for machine learning  because:
+  \begin{enumerate}
+  \item {\bf Just like MSE, it estimates the true class probability:}
+    in the limit as $n\rightarrow\infty$, $\nabla_W{\mathcal
+      L}\rightarrow E\left[(Y-\mathbf{g}(\mathbf{x}))H\right]$, which is zero
+    only if
+    \[
+    \mathbf{g}(\mathbf{x})=E\left[Y|\mathbf{X}\right]=p_{Y|\mathbf{X}}(1|\mathbf{x})
+    \]
+  \item {\bf Unlike MSE, it does not suffer from the vanishing
+    gradient problem of the sigmoid.}
+  \end{enumerate}
+\end{frame}
+\begin{frame}
+  \frametitle{Unlike MSE, BCE does not suffer from the vanishing
+    gradient problem of the sigmoid.}
+  The vanishing gradient problem
+  was caused by
+  $\sigma'=\sigma(1-\sigma)$, which
+  goes to zero when its input is either plus or minus infinity.
+  \begin{itemize}
+  \item If $y_i=1$, then differentiating $\ln\sigma$
+    cancels the $\sigma$ term in the numerator, leaving only the
+    $(1-\sigma)$ term, which is large if and only if the neural net
+    is wrong.
+  \item If $y_i=0$, then differentiating $\ln(1-\sigma)$
+    cancels the $(1-\sigma)$ term in the numerator, leaving only the
+    $\sigma$ term, which is large if and only if the neural net is wrong.
+  \end{itemize}
+  So binary cross-entropy ignores training tokens only if the neural
+  net guesses them right.  If it guesses wrong, then
+  back-propagation happens.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[CE Loss]{Multinomial Classifier: Cross-Entropy  Loss}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Multinomial Classifier}
+
+  Suppose, instead of just a 2-class classifier, we want the neural
+  network to classify $\mathbf{x}$ as being one of $K$ different classes.
+  There are many ways to encode this, but one of the best is
+  \begin{displaymath}
+    \mathbf{y}=\left[\begin{array}{c}y_1\\y_2\\\vdots\\y_K\end{array}\right],~~~
+    y_k=\begin{cases}1&k=k^*~~(k~\mbox{is the correct class})\\0&\mbox{otherwise}\end{cases}
+  \end{displaymath}
+  A vector $\mathbf{y}$ like this is called a ``one-hot vector,'' because
+  it is a binary vector in which only one of the elements is nonzero (``hot'').
+  This is useful  because minimizing the MSE loss gives:
+  \begin{displaymath}
+    \mathbf{g}(\mathbf{x})=\left[\begin{array}{c}\mathbf{g}(\mathbf{x})_1\\\mathbf{g}(\mathbf{x})_2\\\vdots\\\mathbf{g}(\mathbf{x})_K\end{array}\right]
+    =\left[\begin{array}{c}
+        \hat{p}_{Y_1|\mathbf{X}}(1|\mathbf{x})\\
+        \hat{p}_{Y_2|\mathbf{X}}(1|\mathbf{x})\\
+        \vdots\\
+        \hat{p}_{Y_K|\mathbf{X}}(1|\mathbf{x})
+        \end{array}\right],
+  \end{displaymath}
+  where the global optimum of
+  $\hat{p}_{Y_k|\mathbf{X}}(y|\mathbf{x})\rightarrow
+  p_{Y_k|\mathbf{X}}(y|\mathbf{x})$ as $n\rightarrow\infty$.
+\end{frame}
+
+\begin{frame}
+  \frametitle{One-hot vectors and Cross-entropy loss}
+  
+  The cross-entropy loss, for a training database coded with one-hot vectors, is
+  \begin{align*}
+    {\mathcal L}_{CE} &=-\frac{1}{n}\sum_{i=1}^n\sum_{k=1}^K y_{ki}\ln\mathbf{g}(\mathbf{x})_{ki}
+  \end{align*}
+  This is useful because:
+  \begin{enumerate}
+  \item {\bf Like MSE, Cross-Entropy has an asymptotic global optimum at:}
+    $\mathbf{g}(\mathbf{x})_k\rightarrow p_{Y_k|\mathbf{X}}(1|\mathbf{x})$.
+  \item {\bf Unlike MSE, Cross-Entropy with a softmax nonlinearity
+    suffers no vanishing gradient problem.}
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Softmax Nonlinearity}
+
+  The multinomial cross-entropy loss is only well-defined if
+  $0<\mathbf{g}(\mathbf{x})_{ki}<1$, and it is only well-interpretable if
+  $\sum_k\mathbf{g}(\mathbf{x})_{ki}=1$.  We can guarantee these two properties by
+  setting
+  \begin{align*}
+    \mathbf{g}(\mathbf{x})_k &= \softmax_k\left(W\mathbf{h}\right)\\
+    &= \frac{\exp(\bar{w}_k\mathbf{h})}{\sum_{\ell=1}^K
+      \exp(\bar{w}_\ell\mathbf{h})},
+  \end{align*}
+  where $\bar{w}_k$ is the $k^{\textrm{th}}$ row of the $W$ matrix.
+\end{frame}
+
+\begin{frame}
+  \frametitle{Sigmoid is a special case of Softmax!}
+
+  \begin{displaymath}
+    \softmax_k\left(W\mathbf{h}\right)
+    = \frac{\exp(\bar{w}_k\mathbf{h})}{\sum_{\ell=1}^K
+      \exp(\bar{w}_\ell\mathbf{h})}.
+  \end{displaymath}
+  Notice that, in the 2-class case, the softmax is just exactly a
+  logistic sigmoid function:
+  \begin{displaymath}
+    \softmax_1(W\mathbf{h}) = \frac{e^{\bar{w}_1\mathbf{h}}}{e^{\bar{w}_1\mathbf{h}}+e^{\bar{w}_2\mathbf{h}}}
+    = \frac{1}{1+e^{-(\bar{w}_1-\bar{w}_2)\mathbf{h}}}  =\sigma\left((\bar{w}_1-\bar{w}_2)\mathbf{h}\right)
+  \end{displaymath}
+  so everything that you've already learned about the sigmoid applies
+  equally well here.
+\end{frame}

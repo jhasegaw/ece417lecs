@@ -1,0 +1,36 @@
+\begin{center}
+  \tikzstyle{pre}=[<-,shorten <=1pt,>=stealth',semithick,draw=blue]
+  \tikzstyle{post}=[->,shorten >=1pt,>=stealth',semithick,draw=blue]
+  \begin{tikzpicture}[
+      open/.style={circle,thick, draw=blue, text=black, align=left, text width=0.5cm}
+    ]
+    \node (x0) at (0,0.25) {$1$};
+    \node[open] (x1) at (1,0) {$x_1$};
+    \node[open] (x2) at (2,0) {$x_2$};
+    \node (x3) at (2.75,0) {\ldots};
+    \node[open] (xm0) at (3.5,0) {$x_{m_0}$};
+    \node (input) at (6,0) {$\mathbf{a}_0=\mathbf{x}$ is the input vector};
+    \node[open] (z11) at (1,1.3) {$z_{1,1}$} edge[pre](x0) edge[pre](x1) edge[pre](x2) edge[pre](xm0);
+    \node[open] (z12) at (2,1.3) {$z_{1,2}$} edge[pre](x0) edge[pre](x1) edge[pre](x2) edge[pre](xm0);
+    \node (z13) at (2.75,1.3) {\ldots};
+    \node[open] (z1m1) at (3.5,1.3) {$z_{1,m_1}$} edge[pre](x0) edge[pre](x1) edge[pre](x2) edge[pre](xm0);
+    \node (z1eq) at (6,1.3) {$\mathbf{z}_1=\mathbf{W}_1\mathbf{x}+\mathbf{b}_1$};
+    \node (a10) at (0,2.7) {$1$};
+    \node[open] (a11) at (1,2.45) {$a_{1,1}$} edge[pre](z11);
+    \node[open] (a12) at (2,2.45) {$a_{1,2}$} edge[pre](z12);
+    \node (a13) at (2.75,2.45) {\ldots};
+    \node[open] (a1m1) at (3.5,2.45) {$a_{1,m_1}$} edge[pre](z1m1);
+    \node (a1eq) at (6,2.45) {$\mathbf{a}_1=\mathbf{f}_1(\mathbf{z}_1)$};
+    \node[open] (z21) at (1,3.75) {$z_{2,1}$} edge[pre](a10) edge[pre](a11) edge[pre](a12) edge[pre](a1m1);
+    \node[open] (z22) at (2,3.75) {$z_{2,2}$} edge[pre](a10) edge[pre](a11) edge[pre](a12) edge[pre](a1m1);
+    \node (z23) at (2.75,3.75) {\ldots};
+    \node[open] (z2m2) at (3.5,3.75){$z_{2,m_2}$}edge[pre](a10) edge[pre](a11) edge[pre](a12) edge[pre](a1m1);
+    \node (z2eq) at (6,3.75) {$\mathbf{z}_2=\mathbf{W}_2\mathbf{a}_1+\mathbf{b}_2$};
+    \node[open] (a21) at (1,4.9) {$g_{1}$} edge[pre](z21);
+    \node[open] (a22) at (2,4.9) {$g_{2}$} edge[pre](z22);
+    \node (a23) at (2.75,4.9) {\ldots};
+    \node[open] (a2m2) at (3.5,4.9) {$g_{m_2}$} edge[pre](z2m2);
+    \node (z2eq) at (6,4.9) {$\mathbf{g}(\mathbf{x})=\mathbf{a}_2=\mathbf{f}_2(\mathbf{z}_2)$};
+    \node (output) at (2.2,5.65) {${\mathcal{L}}=E\left[-\ln\Pr(\mathbf{y}|\mathbf{g}(\mathbf{x}))\right]$};
+  \end{tikzpicture}
+\end{center}
