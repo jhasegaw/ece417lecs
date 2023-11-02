@@ -1,0 +1,28 @@
+        \begin{center}
+          \tikzstyle{pre}=[<-,shorten <=1pt,>=stealth',semithick,draw=blue]
+          \tikzstyle{post}=[->,shorten >=1pt,>=stealth',semithick,draw=blue]
+          \begin{tikzpicture}[
+              hoop/.style={circle,thick, draw=blue, text=black, fill=orange!35!white, text centered, text width=0.25cm},
+              open/.style={circle,thick, draw=blue, text=black, text centered, text width=0.25cm}
+            ]
+            \node (x0) at (0,0) {$1$};
+            \node[open] (x1) at (1,0) {$x_1$};
+            \node[open] (x2) at (2,0) {$x_2$};
+            \node (x3) at (3,0) {\ldots};
+            \node[open] (xp) at (4,0) {$x_D$};
+            \node (h0) at (0,1.5) {$1$};
+            \node[hoop] (h1) at (1,1.5) {$h_1$} edge[pre](x0) edge[pre](x1) edge[pre](xp);
+            \node[hoop] (h2) at (2,1.5) {$h_2$} edge[pre](x0) edge[pre](x1) edge[pre](xp);
+            \node (y3) at (3,1.5) {\ldots};
+            \node[hoop] (hq) at (4,1.5) {$h_N$} edge[pre](x0) edge[pre](x1) edge[pre](xp);
+            \node[hoop] (y1) at (1,3) {$\hat{y}_1$} edge[pre](h0) edge[pre](h1) edge[pre](hq);
+            \node[hoop] (y2) at (2,3) {$\hat{y}_2$} edge[pre](h0) edge[pre](h1) edge[pre](hq);
+            \node (y3) at (3,3) {\ldots};
+            \node[hoop] (yr) at (4,3) {$\hat{y}_K$} edge[pre](h0) edge[pre](h1) edge[pre](hq);
+            \node (zeta1) at (1,3.75) {} edge[pre](y1);
+            \node (zeta2) at (2,3.75) {} edge[pre](y2);
+            \node (zetar) at (4,3.75) {} edge[pre](yr);
+            \node (output) at (2.5,4) {$\hat{y}=h(\bm{x},\bm{W}^{(1)},\bm{b}^{(1)},\bm{W}^{(2)},\bm{b}^{(2)})$};
+            \draw[dashed] (0,2.25) -- (5,2.25);
+          \end{tikzpicture}
+        \end{center}

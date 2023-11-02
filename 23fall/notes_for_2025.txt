@@ -17,3 +17,11 @@ Lecture 6: can I figure out why Griffin-Lim doesn't converge to
 exactly the desired signal?  Maybe underconstrained b/c no overlap in
 first and last half frames -- maybe need to have a signal with zeros
 in the first and last half frame?
+
+HMMs: Can I use capital letters for the random variables, e.g.,
+
+a_{i,j} = Pr(Q_{t+1}=j|Q_t=i)
+b_j(x_t) = Pr(X_t=x_t|Q_t=j)
+alpha_t(i) = Pr(X_1=x_1,...,X_t=x_t,Q_t=i)
+beta_t(i) = Pr(X_{t+1}=x_{t+1},...,X_T=x_T|Q_t=i)
+

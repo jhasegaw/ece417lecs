@@ -1,0 +1,18 @@
+Describe Viola-Jones in three steps:
+
+1. Haar-like features
+2. Finding the best threshold for a Haarlike features
+3. Weighted combination of step-thresholded Haarlike features
+
+For step 2, the best threshold, don't introduce signed error or
+weights until they are useful to the proof.
+
+1. The best threshold must be one of the feature values, so sort them in ascending order.
+2. For sign=+1, you can find P(TP) by giving each token a weight, and adding w*y for f<threshold
+3. Adding w*(1-y) gives P(FP)
+4. Therefore error is P1- sum(w*(2y-1))
+5. If sign=-1, adding w*y gives P(FN), while w*(1-y) gives P(TN), so error is P0+sum(w*(2y-1))
+6. Compute signed weighted error, then argsort, then cumsum, then find min and max
+
+Introduce weights at step 2.  Introduce signed weighted error at step 6.
+
