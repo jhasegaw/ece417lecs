@@ -647,7 +647,7 @@
     \]
   \item The cell is output only when the output gate is on, $o[t]=1$.
     \[
-    h[t] = o[t]c[t]
+    h[t] = o[t]\sigma_h(c[t])
     \]
   \end{enumerate}
 \end{frame}
@@ -679,7 +679,7 @@
   \frametitle{When Should You Remember?}
   \begin{align*}
     c[t] &= f[t]c[t-1] + i[t]\sigma_h\left(w_cx[t]+u_ch[t-1]+b_c\right)\\
-    h[t] &= o[t]c[t]
+    h[t] &= o[t]\sigma_h(c[t])
   \end{align*}
   \begin{enumerate}
   \item The forget gate is a function of current input and past output,
@@ -699,7 +699,7 @@
     o[t] &=\mbox{output gate}=\sigma(w_o x[t]+u_o h[t-1]+b_o)\\
     f[t] &=\mbox{forget gate}=\sigma(w_f x[t]+u_f h[t-1]+b_f)\\
     c[t] &=\mbox{memory cell}=f[t]c[t-1]+i[t]\mbox{tanh}\left(w_cx[t]+u_ch[t-1]+b_c\right)\\
-    h[t] &=\mbox{output}=o[t]c[t]
+    h[t] &=\mbox{output}=o[t]\\mbox{tanh}(c[t])
   \end{align*}
 \end{frame}
 
@@ -711,8 +711,8 @@
         c[t] &=f[t]c[t-1]+i[t]x[t]\\
         i[t] &=1~\mbox{always}\\
         h[t] &=o[t]c[t]\\
-        o[t] &=\begin{cases}1 & x[t]==0\\0&x[t]\ge 1\end{cases}\\
-        f[t] &=\begin{cases}1 & h[t-1]\ge 1\\0&h[t-1]==0\end{cases}
+        o[t] &=\begin{cases}1 & x[t]=0\\0&x[t]\ge 1\end{cases}\\
+        f[t] &=\begin{cases}1 & h[t-1]=0\\0&h[t-1]\ge 0\end{cases}
       \end{align*}
     \end{block}
     \column{2.25in}
@@ -837,7 +837,7 @@
     o[t] &=\sigma_g(w_o x[t]+u_o h[t-1]+b_o)\\
     f[t] &=\sigma_g(w_f x[t]+u_f h[t-1]+b_f)\\
     c[t] &=f[t]c[t-1]+i[t]\sigma_h\left(w_cx[t]+u_ch[t-1]+b_c\right)\\
-    h[t] &=o[t]c[t]
+    h[t] &=o[t]\sigma_h(c[t])
   \end{align*}
 \end{frame}
 
@@ -965,7 +965,7 @@
     o[t] &=\sigma_g(w_o x[t]+u_o h[t-1]+b_o)\\
     f[t] &=\sigma_g(w_f x[t]+u_f h[t-1]+b_f)\\
     c[t] &=f[t]c[t-1]+i[t]\sigma_h\left(w_cx[t]+u_ch[t-1]+b_c\right)\\
-    h[t] &=o[t]c[t]
+    h[t] &=o[t]\sigma_h(c[t])
   \end{align*}
 \end{frame}
 

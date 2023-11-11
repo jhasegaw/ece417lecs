@@ -1,4 +1,17 @@
-Lectures 1 and 2: Don't teach eigenvectors and SVD.  Instead,
+Maybe start with Bayesian classifiers -- maybe even mp4 first, then
+mp3 using eigenface.  Then part 2 is vector space signal processing:
+mp2=Griffin-Lim, mp1=barycentric coordinates.  Then part 3 is deep
+learning: LSTM, autoencoder.
+
+The vector derivative stuff has thoroughly confused them.  Many of
+them still don't even seem to know what the norm symbol means!!
+Instead, teach them how to turn every matrix equation into a set of
+scalar summations, differentiate in scalar form, and then turn it back
+into a matrix equation.
+
+
+
+NO: Lectures 1 and 2: Don't teach eigenvectors and SVD.  Instead,
 basically, teach what is currently the content of HW1, and make the HW
 a set of sample problems instead --- use the current lec07 in place of
 lec01?  Include: (1) derivative of scalar w.r.t. vector (gradient) and

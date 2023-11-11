@@ -1,8 +1,12 @@
 lec  = lec19
 
-$(lec).pdf: $(lec).tex exp/melspectrogram.png exp/haplogroup.png exp/lstm.png
+$(lec).pdf: $(lec).tex exp/melspectrogram.png exp/haplogroup.png exp/lstm.png exp/block-I-primary.png
 	pdflatex $(lec)
 	pdflatex $(lec)
+
+exp/block-I-primary.png:
+	mkdir -p exp
+	wget -O exp/block-I-primary.png https://marketing.illinois.edu/wp-content/uploads/2021/09/block-I-primary.png
 
 exp/melfilters.png:
 	python makefigs.py
