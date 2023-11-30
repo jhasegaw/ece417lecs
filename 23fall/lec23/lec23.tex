@@ -1,0 +1,178 @@
+\documentclass{beamer}
+\usepackage{listings,bm}
+\usepackage{hyperref}
+\usepackage{animate}
+\usepackage{tikz}
+\usetikzlibrary{positioning,shadows,arrows,shapes,calc}
+\usepackage{tipa}
+\DeclareMathOperator*{\softmax}{softmax}
+\newcommand{\ipa}[1]{\fontfamily{cmr}\selectfont\textipa{#1}}
+\def\labelenumi\theenumi
+\usepackage{graphicx}
+\usepackage{amsmath}
+\mode<presentation>{\usetheme{Frankfurt}}
+\AtBeginSection
+{
+  \begin{frame}<beamer>
+    \frametitle{Outline}
+    \tableofcontents[currentsection,currentsubsection]
+  \end{frame}
+}
+\title{Lecture 23: Exam 3 Review}
+\author{Mark Hasegawa-Johnson\\These slides are in the public domain}
+\date{ECE 417: Multimedia Signal Processing}
+\institute{University of Illinois}
+\titlegraphic{\includegraphics[width=0.3in]{exp/block-I-primary.png}}
+\begin{document}
+
+% Title
+\begin{frame}
+  \maketitle
+\end{frame}
+
+% Title
+\begin{frame}
+  \tableofcontents
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Overview]{Administrative}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Wnen and Where?}
+  \begin{itemize}
+  \item Friday, December 8
+  \item 1:30-4:30pm
+  \item Here (ECEB 2013)
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+
+  \begin{itemize}
+  \item Bring:
+    \begin{itemize}
+    \item Up to 3 sheets of notes, hand-written or 12pt+ notes on both sides
+    \item Pencils or pens
+    \end{itemize}
+  \item Don't bring:
+    \begin{itemize}
+    \item Calculators, computers, tablets, phones
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Is it comprehensive?}
+
+  Yes, but with an emphasis on the last third of the course.
+  \begin{itemize}
+  \item Total: 200 points
+  \item About 34 points: First third of the course
+  \item About 34 points: Second third of the course
+  \item About 132 points: Last third of the course
+  \end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Topics covered]{Topics covered}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{What is the ``last third''?}
+
+  \begin{itemize}
+  \item Covered on the exam:
+    \begin{itemize}
+    \item Lecture 15: PCA
+    \item Lecture 17: RNN
+    \item Lecture 18: LSTM
+    \end{itemize}
+  \item Not covered:
+    \begin{itemize}
+    \item Lecture 19: Speaker verification
+    \item Lecture 20: AutoVC
+    \item Lecture 21: Transformer
+    \item Lecture 22: Self-supervised learning
+    \end{itemize}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{PCA}
+  \begin{itemize}
+  \item Symmetric positive semidefinite matrices:
+    \[
+    \bm{\Sigma}=\bm{U}\bm{\Lambda} \bm{U}^T,~~\bm{U}^T\bm{\Sigma}\bm{U}=\bm{\Lambda},~~\bm{U}^T\bm{U}=\bm{U}\bm{U}^T=\bm{I}
+    \]
+  \item Centered dataset:
+    \[
+    \bm{X} = \left[\bm{x}_1-\bm{\mu},\ldots,\bm{x}_{M}-\bm{\mu}\right],~~~
+    \bm{\Sigma}=\frac{1}{M-1}\bm{X}\bm{X}^T,~~~
+    \bm{G}=\bm{X}^T\bm{X}
+    \]
+  \item Singular value decomposition:
+    \[
+    \bm{X} = \bm{U}\bm{\Lambda}^{1/2}\bm{V}^T
+    \]
+  \item The principal components are the first $K$ elements of
+    $\bm{y}_m=\bm{U}^T(\bm{x}_m-\bm{\mu})$.  The amount of energy they capture is:
+    \begin{displaymath}
+      \frac{1}{M-1}\sum_{m=1}^M\Vert\bm{y}_m\Vert^2=\sum_{k=1}^K \lambda_k
+    \end{displaymath}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{RNN}
+  \begin{itemize}
+  \item Back-Prop, in general, is just the chain rule of calculus:
+    \begin{displaymath}
+      \frac{d{\mathcal L}}{dw} = \sum_{i=0}^{N-1}\frac{d{\mathcal L}}{dh_i}\frac{\partial h_i}{\partial w}
+    \end{displaymath}
+  \item Convolutional Neural Networks are the nonlinear version of an FIR filter.
+    Coefficients are shared across time steps.
+  \item Recurrent Neural Networks are the nonlinear version of an IIR filter.  
+    Coefficients are shared across time steps.
+    Error is back-propagated from every output time step to every input time step.
+    \begin{displaymath}
+      \frac{d{\mathcal L}}{dh[n]}
+      =\frac{\partial {\mathcal L}}{\partial h[n]}+
+      \sum_{m=1}^{M}\frac{d{\mathcal L}}{dh[n+m]}\frac{\partial h[n+m]}{\partial h[n]}
+    \end{displaymath}
+    \begin{align*}
+      \frac{\partial{\mathcal L}}{\partial w[m]}\left(w[1],\ldots,w[M]\right)
+      &=\sum_{n}\frac{d{\mathcal L}}{dh[n]}\frac{\partial h[n]}{\partial w[m]}
+    \end{align*}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Neural Network Model: LSTM}
+  \centerline{\includegraphics[width=2.5in]{exp/1024px-LSTM_Cell.svg.png}}
+  \begin{align*}
+    i[t] &=\mbox{input gate}=\sigma(w_i x[t]+u_i h[t-1]+b_i)\\
+    o[t] &=\mbox{output gate}=\sigma(w_o x[t]+u_o h[t-1]+b_o)\\
+    f[t] &=\mbox{forget gate}=\sigma(w_f x[t]+u_f h[t-1]+b_f)\\
+    c[t] &=f[t]c[t-1]+i[t]\mbox{tanh}\left(w_cx[t]+u_ch[t-1]+b_c\right)\\
+    h[t] &=\mbox{output}=o[t]\mbox{tanh}(c[t])
+  \end{align*}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section[Sample Problems]{Sample Problems}
+\setcounter{subsection}{1}
+
+\begin{frame}
+  \frametitle{Sample Problems}
+  \begin{itemize}
+  \item Sample problems about PCA
+  \item Sample problems about RNN
+  \item Sample problems about LSTM
+  \end{itemize}
+\end{frame}
+
+
+\end{document}
+
